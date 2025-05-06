@@ -1,5 +1,5 @@
 # ari - Golang Asterisk Rest Interface (ARI) library
-[![Build Status](https://travis-ci.org/CyCoreSystems/ari.png)](https://travis-ci.org/CyCoreSystems/ari) [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/CyCoreSystems/ari/v6) 
+[![Build Status](https://travis-ci.org/CyCoreSystems/ari.png)](https://travis-ci.org/CyCoreSystems/ari) [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/CyCoreSystems/ari/v5) 
 
 This library allows you to easily access ARI in go applications.  The Asterisk Rest Interface (https://wiki.asterisk.org/wiki/pages/viewpage.action?pageId=29395573) is an asynchronous API which allows you to access basic Asterisk objects for custom communications applications.  
 
@@ -21,7 +21,7 @@ client library.  It can be found at
 
 Install with: 
 ```sh 
-go get github.com/CyCoreSystems/ari/v6
+go get github.com/CyCoreSystems/ari/v5
 ```
 
 # Features

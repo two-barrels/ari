@@ -6,8 +6,8 @@ import (
 
 	"github.com/rotisserie/eris"
 
-	"github.com/CyCoreSystems/ari/v6"
-	"github.com/CyCoreSystems/ari/v6/rid"
+	"github.com/CyCoreSystems/ari/v5"
+	"github.com/CyCoreSystems/ari/v5/rid"
 )
 
 // sequence represents an audio sequence playback session

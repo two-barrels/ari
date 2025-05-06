@@ -8,10 +8,10 @@ import (
 	"github.com/rotisserie/eris"
 	"golang.org/x/exp/slog"
 
-	"github.com/CyCoreSystems/ari/v6"
-	"github.com/CyCoreSystems/ari/v6/client/native"
-	"github.com/CyCoreSystems/ari/v6/ext/play"
-	"github.com/CyCoreSystems/ari/v6/rid"
+	"github.com/CyCoreSystems/ari/v5"
+	"github.com/CyCoreSystems/ari/v5/client/native"
+	"github.com/CyCoreSystems/ari/v5/ext/play"
+	"github.com/CyCoreSystems/ari/v5/rid"
 )
 
 var ariApp = "test"
