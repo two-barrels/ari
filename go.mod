@@ -1,4 +1,4 @@
-module github.com/CyCoreSystems/ari/v6
+module github.com/CyCoreSystems/ari/v5
 
 go 1.24.0
 

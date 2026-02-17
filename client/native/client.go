@@ -14,9 +14,9 @@ import (
 	"golang.org/x/exp/slog"
 	"golang.org/x/net/websocket"
 
-	"github.com/CyCoreSystems/ari/v6"
-	"github.com/CyCoreSystems/ari/v6/rid"
-	"github.com/CyCoreSystems/ari/v6/stdbus"
+	"github.com/CyCoreSystems/ari/v5"
+	"github.com/CyCoreSystems/ari/v5/rid"
+	"github.com/CyCoreSystems/ari/v5/stdbus"
 )
 
 // Options describes the options for connecting to

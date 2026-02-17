@@ -5,7 +5,7 @@
 package arimocks
 
 import (
-	"github.com/CyCoreSystems/ari/v6"
+	"github.com/CyCoreSystems/ari/v5"
 	mock "github.com/stretchr/testify/mock"
 )
 
