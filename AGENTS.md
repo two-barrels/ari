@@ -5,8 +5,11 @@
 ## Release candidate status — 2026-10-02 (supersedes historical status below)
 
 Current candidate: `v6.0.0-rc.2`, adding attribution notices and audit tooling
-to rc.1. Publish ARI first, then require that exact tag in proxy before its
-matching candidate. Preserve both rc.1 tags; v5 main is unchanged.
+to rc.1. Published ARI commit: `dc3acba72d489a55ba6493caaccaba8010f6e1a6`;
+proxy rc.2: `9c44cb93565459e4660a11374c6b36587ceb7338`, requiring that tag.
+Both hosted workflows and the final published-tag consumer check passed with
+no workspace/replacements. phone-apps v6ari uses rc.2 at local commit 04bfdd3;
+its full race suite and vet pass. Both rc.1 tags and v5 main remain unchanged.
 
 The v6 branch now carries per-file two-barrels modification/creation notices
 relative to the pinned upstream commit in NOTICE. Run `go run ./tools/file-notices`
