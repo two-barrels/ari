@@ -98,7 +98,9 @@ certify every operation or all Asterisk 14+ versions. New endpoints on older
 servers may fail with version-specific errors; consult the pinned manifest and
 `testfixtures/asterisk_versions.go` for selected introduction boundaries.
 
-Live Asterisk 20/23 and NATS/RabbitMQ checks remain release gates. Follow the
+The user accepted Asterisk 22.10.1 as sufficient live validation for current
+release scope on 2026-10-01. Live Asterisk 20/23 checks are deferred, and
+NATS/RabbitMQ checks are deferred for now. Follow the
 [coordinated release checklist](../../ari-proxy/docs/v6-release-checklist.md).
 From the sibling proxy checkout, `go run ./tools/release-check` packages both
 working trees and builds an external consumer without workspace or local

@@ -2,35 +2,46 @@ name: Go
 
 on:
   push:
-    branches: [ master ]
+    branches: [main, master, 'codex/**']
   pull_request:
-    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOWORK: 'off'
+  GOTOOLCHAIN: local
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.25.x', '1.26.8']
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.21
-
-    - name: lint
-      uses: golangci/golangci-lint-action@v3.7.0
-      with:
-        args: ./...
-
-    - name: Build API
-      run: go build -v ./ ./stdbus ./rid
-
-    - name: Build Clients
-      run: go build -v ./client/native ./client/arimocks
-
-    - name: Build Extensions
-      run: go build -v ./ext/...
-
-    - name: Test
-      run: go test -v ./...
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache-dependency-path: go.sum
+      - name: Verify modules
+        run: |
+          go mod download
+          go mod verify
+          go mod tidy -diff
+      - name: Vet
+        run: go vet ./...
+      - name: Build packages and examples
+        run: |
+          go build ./...
+          go build ./_examples/bridge ./_examples/helloworld ./_examples/play ./_examples/record ./_examples/stasisStart ./_examples/twoapps
+      - name: Race tests
+        run: go test -race ./...
+      - name: Vulnerability scan
+        if: matrix.go == '1.26.8'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

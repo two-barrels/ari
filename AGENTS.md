@@ -20,6 +20,28 @@ Read `../ari-proxy/docs/ari-23-upgrade-plan.md` before extending the work. Its m
 
 ## Next work
 
+User scope decision (2026-10-01): existing Asterisk 22.10.1 live evidence is
+sufficient for the current release scope. Further live PBX validation, including
+Asterisk 20/23, is deferred and is not a current release gate. NATS/RabbitMQ
+live testing was also deferred for now. Retain the unverified-version caveats
+and local pinned Asterisk 23 contract coverage; do not restart deferred tests.
+
+CI preparation (2026-10-01): `.github/workflows/go.yml` runs module checks,
+vet, package/example builds, and race suites on Go 1.25.x and 1.26.8, plus
+govulncheck on 1.26.8. GOTOOLCHAIN=local ensures the matrix compiler is used.
+Main/master/codex branch pushes, PRs, and manual runs trigger checks. Hosted
+runs require pushing this branch; push ARI before proxy because proxy CI checks
+out two-barrels/ari at codex/v6-modernization.
+
+Dependency refresh (2026-10-01): networking now uses x/net 0.58.0 and
+x/text 0.41.0; testify is 1.12.1. Go minimum remains 1.25.0; the module
+recommends patched toolchain go1.26.8. Explicit GOTOOLCHAIN overrides bypass
+that recommendation, so use a patched compiler for release builds.
+Both repositories passed Go 1.26.8 race suites, Go 1.25.7 compatibility
+tests, the 109-operation/175-parameter checker, and standalone snapshot builds.
+govulncheck on Go 1.26.8 reported no ARI vulnerabilities and no reachable
+proxy vulnerabilities (three module-only proxy advisories remain).
+
 Release preparation drafts are in `docs/v6-migration.md` and the sibling
 `docs/v6-release-checklist.md`. The sibling `tools/release-check` packages both
 working trees into a temporary module proxy and builds all packages plus an
@@ -33,7 +55,7 @@ websocket `connected` flag access with `atomic.Bool`; local regression coverage
 is `client/native/client_shutdown_test.go`. Cleanup verified zero bridges and
 channels. See the sibling live-validation report for remaining limitations.
 
-1. Run a shared integration suite against selected live Asterisk versions (planned 20, 22, and 23), using `testfixtures/asterisk_versions.go` as the initial version-boundary cases. Confirm ARI 23 event payloads, route response IDs, binary recording, option behavior, and version-specific failures. No live Asterisk 23 certification has been completed. Generated ARI handlers parse JSON-body fields for many POST/PUT operations; keep that encoding where accepted.
+1. Deferred: live Asterisk 20/23 validation. Asterisk 22.10.1 is accepted for current scope; no live Asterisk 23 certification has been completed. Generated ARI handlers parse JSON-body fields for many POST/PUT operations; keep that encoding where accepted.
 2. Extend response/error cases where live tests expose a gap; the pinned local wire contract is complete, but representative responses do not prove every server response shape.
 3. Audit remaining path/query escaping and request context propagation. Cover error responses and status codes for each resource; watch media and recording operations that may exceed the current short request timeout.
 4. Complete compatibility and migration notes before a coordinated major release. Tag `ari/v6` only after the contract, integration, and standalone-consumer gates pass; then replace the proxy's local module override with a real tag. Keep v5 maintenance separate if required.
