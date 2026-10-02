@@ -2,8 +2,9 @@ package native
 
 import (
 	"errors"
+	"net/url"
 
-	"github.com/CyCoreSystems/ari/v5"
+	"github.com/two-barrels/ari/v6"
 )
 
 // DeviceState provides the ARI DeviceState accessors for the native client
@@ -60,11 +61,12 @@ func (ds *DeviceState) Data(key *ari.Key) (*ari.DeviceStateData, error) {
 
 // Update updates the state of the device
 func (ds *DeviceState) Update(key *ari.Key, state string) error {
-	req := map[string]string{
-		"deviceState": state,
+	if key == nil || key.ID == "" {
+		return errors.New("device key not supplied")
 	}
-
-	return ds.client.put("/deviceStates/"+key.ID, nil, &req)
+	return ds.client.put("/deviceStates/"+url.PathEscape(key.ID), nil, &struct {
+		DeviceState string `json:"deviceState"`
+	}{DeviceState: state})
 }
 
 // Delete deletes the device

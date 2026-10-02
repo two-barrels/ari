@@ -17,6 +17,12 @@ type Channel interface {
 	// GetVariable retrieves the value of a channel variable
 	GetVariable(*Key, string) (string, error)
 
+	// GetVariables retrieves multiple channel variables or functions.
+	GetVariables(key *Key, names ...string) (map[string]any, error)
+
+	// SetVariables writes multiple channel variables or functions.
+	SetVariables(key *Key, values map[string]VariableAssignment) error
+
 	// List lists the channels in asterisk, optionally using the key for filtering
 	List(*Key) ([]*Key, error)
 
@@ -25,6 +31,8 @@ type Channel interface {
 	// The Key should be that of the linked channel, if one exists, so that the
 	// Node can be matches to it.
 	Originate(*Key, OriginateRequest) (*ChannelHandle, error)
+	// OriginateWithID selects POST /channels/{channelId}.
+	OriginateWithID(*Key, OriginateRequest) (*ChannelHandle, error)
 
 	// StageOriginate creates a new Originate, created when the `Exec` method
 	// on `ChannelHandle` is invoked.
@@ -43,9 +51,22 @@ type Channel interface {
 
 	// Continue tells Asterisk to return a channel to the dialplan
 	Continue(key *Key, context, extension string, priority int) error
+	ContinueWithOptions(key *Key, opts ChannelContinueOptions) error
 
 	// Move moves the channel into another Stasis application
 	Move(key *Key, app string, appArgs string) error
+
+	// Redirect sends a channel to another endpoint.
+	Redirect(key *Key, endpoint string) error
+
+	// Progress indicates call progress on a channel.
+	Progress(key *Key) error
+
+	// TransferProgress reports attended or blind transfer progress.
+	TransferProgress(key *Key, state string) error
+
+	// RTPStatistics reads RTP packet, jitter, loss, and timing statistics.
+	RTPStatistics(key *Key) (*RTPStats, error)
 
 	// Busy hangs up the channel with the "busy" cause code
 	Busy(key *Key) error
@@ -58,6 +79,7 @@ type Channel interface {
 
 	// Hangup hangs up the given channel
 	Hangup(key *Key, reason string) error
+	HangupWithOptions(key *Key, opts ChannelHangupOptions) error
 
 	// Ring indicates ringing to the channel
 	Ring(key *Key) error
@@ -85,6 +107,7 @@ type Channel interface {
 
 	// SetVariable sets a channel variable
 	SetVariable(key *Key, name, value string) error
+	SetVariableWithOptions(key *Key, name, value string, opts *ChannelVariableSetOptions) error
 
 	// StopMOH stops music on hold
 	StopMOH(key *Key) error
@@ -97,10 +120,16 @@ type Channel interface {
 
 	// Play plays the media URI to the channel
 	Play(key *Key, playbackID string, mediaURI ...string) (*PlaybackHandle, error)
+	PlayWithOptions(key *Key, playbackID string, opts ChannelPlayOptions) (*PlaybackHandle, error)
+	// PlayWithoutID returns Asterisk's assigned playback ID.
+	PlayWithoutID(key *Key, opts ChannelPlayOptions) (*PlaybackHandle, error)
+	// PlayOnCollection uses POST /channels/{channelId}/play with an optional playbackId.
+	PlayOnCollection(key *Key, playbackID string, opts ChannelPlayOptions) (*PlaybackHandle, error)
 
 	// StagePlay stages a `Play` operation and returns the `PlaybackHandle`
 	// for invoking it.
 	StagePlay(key *Key, playbackID string, mediaURI ...string) (*PlaybackHandle, error)
+	StagePlayWithOptions(key *Key, playbackID string, opts ChannelPlayOptions) (*PlaybackHandle, error)
 
 	// Record records the channel
 	Record(key *Key, name string, opts *RecordingOptions) (*LiveRecordingHandle, error)
@@ -114,6 +143,10 @@ type Channel interface {
 
 	// Snoop spies on a specific channel, creating a new snooping channel
 	Snoop(key *Key, snoopID string, opts *SnoopOptions) (*ChannelHandle, error)
+	// SnoopWithoutID returns Asterisk's assigned snoop channel ID.
+	SnoopWithoutID(key *Key, opts *SnoopOptions) (*ChannelHandle, error)
+	// SnoopOnCollection uses POST /channels/{channelId}/snoop with an optional snoopId.
+	SnoopOnCollection(key *Key, snoopID string, opts *SnoopOptions) (*ChannelHandle, error)
 
 	// StageSnoop creates a new `ChannelHandle`, when `Exec`ed, snoops on the given channel ID and
 	// creates a new snooping channel.
@@ -133,6 +166,26 @@ type Channel interface {
 
 	// UserEvent Sends user-event to AMI channel subscribers
 	UserEvent(key *Key, ue *ChannelUserevent) error
+}
+
+// ChannelContinueOptions selects a dialplan location. Label takes precedence
+// over Priority at Asterisk. A nil priority leaves it out of the request.
+type ChannelContinueOptions struct {
+	Context   string
+	Extension string
+	Priority  *int
+	Label     string
+}
+
+// ChannelHangupOptions selects an ARI reason and/or detailed cause code.
+type ChannelHangupOptions struct {
+	Reason     string
+	ReasonCode string
+}
+
+// ChannelVariableSetOptions controls whether updates appear in channel events.
+type ChannelVariableSetOptions struct {
+	ReportEvents *bool
 }
 
 // channelDataJSON is the data for a specific channel
@@ -233,6 +286,18 @@ type ChannelCreateRequest struct {
 	// Formats is the comma-separated list of valid codecs to allow for the new channel, in the case that
 	// the Originator is not specified
 	Formats string `json:"formats,omitempty"`
+
+	// Variables are set on the channel when it is created.
+	Variables map[string]string `json:"variables,omitempty"`
+}
+
+// ChannelPlayOptions controls media playback on a channel. Nil offsets leave
+// Asterisk defaults in effect; pointers preserve explicit zero values.
+type ChannelPlayOptions struct {
+	Media    []string
+	Lang     string
+	OffsetMS *int
+	SkipMS   *int
 }
 
 // SnoopOptions enumerates the non-required arguments for the snoop operation
@@ -280,6 +345,10 @@ type ExternalMediaOptions struct {
 
 	// Data: when encapsulation=audiosocket this specifies the UUID to send
 	Data string `json:"data,omitempty"`
+
+	// TransportData carries transport-specific configuration for the external
+	// media channel.
+	TransportData string `json:"transport_data,omitempty"`
 
 	// Variables defines the set of channel variables which should be bound to this channel upon creation.  This parameter is optional.
 	Variables map[string]string `json:"variables"`
@@ -337,6 +406,10 @@ func (ch *ChannelHandle) Continue(context, extension string, priority int) error
 	return ch.c.Continue(ch.key, context, extension, priority)
 }
 
+func (ch *ChannelHandle) ContinueWithOptions(opts ChannelContinueOptions) error {
+	return ch.c.ContinueWithOptions(ch.key, opts)
+}
+
 // Move moves the channel to a new Stasis app
 func (ch *ChannelHandle) Move(app string, appArgs string) error {
 	return ch.c.Move(ch.key, app, appArgs)
@@ -352,6 +425,18 @@ func (ch *ChannelHandle) Play(id string, mediaURI ...string) (ph *PlaybackHandle
 	return ch.c.Play(ch.key, id, mediaURI...)
 }
 
+func (ch *ChannelHandle) PlayWithOptions(id string, opts ChannelPlayOptions) (*PlaybackHandle, error) {
+	return ch.c.PlayWithOptions(ch.key, id, opts)
+}
+
+func (ch *ChannelHandle) PlayWithoutID(opts ChannelPlayOptions) (*PlaybackHandle, error) {
+	return ch.c.PlayWithoutID(ch.key, opts)
+}
+
+func (ch *ChannelHandle) PlayOnCollection(id string, opts ChannelPlayOptions) (*PlaybackHandle, error) {
+	return ch.c.PlayOnCollection(ch.key, id, opts)
+}
+
 // Record records the channel to the given filename
 func (ch *ChannelHandle) Record(name string, opts *RecordingOptions) (*LiveRecordingHandle, error) {
 	return ch.c.Record(ch.key, name, opts)
@@ -360,6 +445,10 @@ func (ch *ChannelHandle) Record(name string, opts *RecordingOptions) (*LiveRecor
 // StagePlay stages a `Play` operation.
 func (ch *ChannelHandle) StagePlay(id string, mediaURI ...string) (*PlaybackHandle, error) {
 	return ch.c.StagePlay(ch.key, id, mediaURI...)
+}
+
+func (ch *ChannelHandle) StagePlayWithOptions(id string, opts ChannelPlayOptions) (*PlaybackHandle, error) {
+	return ch.c.StagePlayWithOptions(ch.key, id, opts)
 }
 
 // StageRecord stages a `Record` operation
@@ -384,6 +473,10 @@ func (ch *ChannelHandle) Congestion() error {
 // Hangup hangs up the channel with the normal cause code
 func (ch *ChannelHandle) Hangup() error {
 	return ch.c.Hangup(ch.key, "normal")
+}
+
+func (ch *ChannelHandle) HangupWithOptions(opts ChannelHangupOptions) error {
+	return ch.c.HangupWithOptions(ch.key, opts)
 }
 
 //--
@@ -487,9 +580,37 @@ func (ch *ChannelHandle) GetVariable(name string) (string, error) {
 	return ch.c.GetVariable(ch.key, name)
 }
 
+func (ch *ChannelHandle) GetVariables(names ...string) (map[string]any, error) {
+	return ch.c.GetVariables(ch.key, names...)
+}
+
+func (ch *ChannelHandle) SetVariables(values map[string]VariableAssignment) error {
+	return ch.c.SetVariables(ch.key, values)
+}
+
+func (ch *ChannelHandle) Redirect(endpoint string) error {
+	return ch.c.Redirect(ch.key, endpoint)
+}
+
+func (ch *ChannelHandle) Progress() error {
+	return ch.c.Progress(ch.key)
+}
+
+func (ch *ChannelHandle) TransferProgress(state string) error {
+	return ch.c.TransferProgress(ch.key, state)
+}
+
+func (ch *ChannelHandle) RTPStatistics() (*RTPStats, error) {
+	return ch.c.RTPStatistics(ch.key)
+}
+
 // SetVariable sets the value of a channel variable
 func (ch *ChannelHandle) SetVariable(name, value string) error {
 	return ch.c.SetVariable(ch.key, name, value)
+}
+
+func (ch *ChannelHandle) SetVariableWithOptions(name, value string, opts *ChannelVariableSetOptions) error {
+	return ch.c.SetVariableWithOptions(ch.key, name, value, opts)
 }
 
 // --
@@ -503,6 +624,10 @@ func (ch *ChannelHandle) Originate(req OriginateRequest) (*ChannelHandle, error)
 	}
 
 	return ch.c.Originate(ch.key, req)
+}
+
+func (ch *ChannelHandle) OriginateWithID(req OriginateRequest) (*ChannelHandle, error) {
+	return ch.c.OriginateWithID(ch.key, req)
 }
 
 // StageOriginate stages an originate (channel creation and dial) to be Executed later.
@@ -534,6 +659,14 @@ func (ch *ChannelHandle) Dial(caller string, timeout time.Duration) error {
 // Snoop spies on a specific channel, creating a new snooping channel placed into the given app
 func (ch *ChannelHandle) Snoop(snoopID string, opts *SnoopOptions) (*ChannelHandle, error) {
 	return ch.c.Snoop(ch.key, snoopID, opts)
+}
+
+func (ch *ChannelHandle) SnoopWithoutID(opts *SnoopOptions) (*ChannelHandle, error) {
+	return ch.c.SnoopWithoutID(ch.key, opts)
+}
+
+func (ch *ChannelHandle) SnoopOnCollection(id string, opts *SnoopOptions) (*ChannelHandle, error) {
+	return ch.c.SnoopOnCollection(ch.key, id, opts)
 }
 
 // StageSnoop stages a `Snoop` operation

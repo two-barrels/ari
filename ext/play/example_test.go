@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CyCoreSystems/ari/v5"
-	"github.com/CyCoreSystems/ari/v5/client/arimocks"
+	"github.com/two-barrels/ari/v6"
+	"github.com/two-barrels/ari/v6/client/arimocks"
 )
 
 func ExamplePlay() {
@@ -93,8 +93,10 @@ func ExamplePrompt_custom() {
 					// was found, so there is no match possible
 					return pat, Invalid
 				}
+
 				return in, Incomplete
 			}
+
 			return pat, Complete
 		}),
 	).Result()

@@ -7,6 +7,13 @@ type TextMessage interface {
 
 	// SendByURI sends a text message to an endpoint by free-form URI
 	SendByURI(from, to, body string, vars map[string]string) error
+
+	// SendWithKey sends to the endpoint identified by key. The key also selects
+	// an Asterisk node when used through a proxy.
+	SendWithKey(key *Key, from, body string, vars map[string]string) error
+
+	// SendByURIWithKey sends to a URI on the node selected by referenceKey.
+	SendByURIWithKey(referenceKey *Key, from, to, body string, vars map[string]string) error
 }
 
 // TextMessageData describes text message

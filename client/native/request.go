@@ -3,6 +3,7 @@ package native
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -42,7 +43,8 @@ func (e *requestError) Code() int {
 // CodeFromError extracts and returns the code from an error, or
 // 0 if not found.
 func CodeFromError(err error) int {
-	if reqerr, ok := err.(RequestError); ok {
+	var reqerr RequestError
+	if errors.As(err, &reqerr) {
 		return reqerr.Code()
 	}
 
@@ -55,8 +57,21 @@ func maybeRequestError(resp *http.Response) RequestError {
 		return nil
 	}
 
+	message := "Non-2XX response: " + resp.Status
+	if resp.Body != nil {
+		// ARI errors normally contain {"message":"..."}. Bound the read so a
+		// malformed server response cannot allocate an unbounded error string.
+		if data, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10)); err == nil {
+			var body struct {
+				Message string `json:"message"`
+			}
+			if json.Unmarshal(data, &body) == nil && body.Message != "" {
+				message += ": " + body.Message
+			}
+		}
+	}
 	return &requestError{
-		text:       "Non-2XX response: " + resp.Status,
+		text:       message,
 		statusCode: resp.StatusCode,
 	}
 }
@@ -126,6 +141,9 @@ func (c *Client) makeRequest(method, url string, resp interface{}, req interface
 	}
 
 	defer ret.Body.Close() //nolint:errcheck
+	if err := maybeRequestError(ret); err != nil {
+		return err
+	}
 
 	if resp != nil {
 		err = json.NewDecoder(ret.Body).Decode(resp)
@@ -134,7 +152,7 @@ func (c *Client) makeRequest(method, url string, resp interface{}, req interface
 		}
 	}
 
-	return maybeRequestError(ret)
+	return nil
 }
 
 func structToRequestBody(req interface{}) (io.Reader, error) {

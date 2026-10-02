@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CyCoreSystems/ari/v5"
+	"github.com/two-barrels/ari/v6"
 )
 
 // Session describes a structured Play session.
@@ -108,9 +108,6 @@ func newPlaySession(o *Options) *playSession {
 }
 
 func (s *playSession) play(ctx context.Context, p ari.Player) {
-	ctx, cancel := context.WithCancel(ctx)
-	s.cancel = cancel
-
 	defer s.Stop()
 
 	if s.result == nil {
@@ -152,13 +149,13 @@ func (s *playSession) play(ctx context.Context, p ari.Player) {
 
 // playSequence plays the complete audio sequence
 func (s *playSession) playSequence(ctx context.Context, p ari.Player, playbackCounter int) {
-	seq := newSequence(s)
+	seq := newSequence(ctx, s)
 
 	s.mu.Lock()
 	s.currentSequence = seq
 	s.mu.Unlock()
 
-	go seq.Play(ctx, p, playbackCounter)
+	go seq.Play(p, playbackCounter)
 
 	// Wait for sequence playback to complete (or context closure to be caught)
 	select {
@@ -174,6 +171,17 @@ func (s *playSession) playSequence(ctx context.Context, p ari.Player, playbackCo
 
 	// wait for cleanup of sequence so we can get the proper error result
 	<-seq.Done()
+	s.mu.Lock()
+	if s.currentSequence == seq {
+		s.currentSequence = nil
+	}
+	s.mu.Unlock()
+}
+
+func (s *playSession) activeSequence() *sequence {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.currentSequence
 }
 
 // nolint: gocyclo
@@ -226,9 +234,9 @@ func (s *playSession) Stop() {
 	}
 
 	// Stop any audio which is still playing
-	if s.currentSequence != nil {
-		s.currentSequence.Stop()
-		<-s.currentSequence.Done()
+	if seq := s.activeSequence(); seq != nil {
+		seq.Stop()
+		<-seq.Done()
 	}
 
 	// If we have no other status set, set it to Cancelled
@@ -289,8 +297,10 @@ func (s *playSession) listenDTMF(ctx context.Context, p ari.Player) {
 			}
 
 			// If we have a MatchFunc, stop any playing audio
-			if s.o.matchFunc != nil && s.currentSequence != nil {
-				s.currentSequence.Stop()
+			if s.o.matchFunc != nil {
+				if seq := s.activeSequence(); seq != nil {
+					seq.Stop()
+				}
 			}
 		}
 	}
@@ -312,9 +322,9 @@ func (s *playSession) Err() error {
 }
 
 func (s *playSession) StopAudio() {
-	if s.currentSequence != nil {
-		s.currentSequence.Stop()
-		<-s.currentSequence.Done()
+	if seq := s.activeSequence(); seq != nil {
+		seq.Stop()
+		<-seq.Done()
 	}
 }
 

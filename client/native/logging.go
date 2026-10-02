@@ -2,8 +2,9 @@ package native
 
 import (
 	"github.com/rotisserie/eris"
+	"net/url"
 
-	"github.com/CyCoreSystems/ari/v5"
+	"github.com/two-barrels/ari/v6"
 )
 
 // Logging provides the ARI Logging accessors for a native client
@@ -13,13 +14,13 @@ type Logging struct {
 
 // Create creates a logging level
 func (l *Logging) Create(key *ari.Key, levels string) (*ari.LogHandle, error) {
-	req := struct {
-		Levels string `json:"configuration"`
-	}{
-		Levels: levels,
+	if key == nil || key.ID == "" {
+		return nil, eris.New("logging key not supplied")
 	}
-
-	err := l.client.post("/asterisk/logging/"+key.ID, nil, &req)
+	path := "/asterisk/logging/" + url.PathEscape(key.ID)
+	err := l.client.post(path, nil, &struct {
+		Configuration string `json:"configuration"`
+	}{Configuration: levels})
 	if err != nil {
 		return nil, err
 	}

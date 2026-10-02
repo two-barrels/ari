@@ -5,6 +5,10 @@ package ari
 type Asterisk interface {
 	// Info gets data about the asterisk system
 	Info(key *Key) (*AsteriskInfo, error)
+	InfoWithOptions(key *Key, opts AsteriskInfoOptions) (*AsteriskInfo, error)
+
+	// Ping returns the Asterisk server's ARI ping response.
+	Ping(key *Key) (*AsteriskPing, error)
 
 	// Variables returns the global asterisk variables
 	Variables() AsteriskVariables
@@ -17,6 +21,18 @@ type Asterisk interface {
 
 	// Config returns the interface for working with dynamic configuration
 	Config() Config
+}
+
+// AsteriskInfoOptions selects the information returned by GET /asterisk/info.
+type AsteriskInfoOptions struct {
+	Only string
+}
+
+// AsteriskPing is the response from GET /asterisk/ping.
+type AsteriskPing struct {
+	AsteriskID string `json:"asterisk_id"`
+	Ping       string `json:"ping"`
+	Timestamp  string `json:"timestamp"`
 }
 
 // AsteriskInfo describes a running asterisk system

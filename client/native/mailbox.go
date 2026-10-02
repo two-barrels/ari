@@ -2,9 +2,9 @@ package native
 
 import (
 	"errors"
-	"strconv"
+	"net/url"
 
-	"github.com/CyCoreSystems/ari/v5"
+	"github.com/two-barrels/ari/v6"
 )
 
 // Mailbox provides the ARI Mailbox accessors for the native client
@@ -57,12 +57,13 @@ func (m *Mailbox) Data(key *ari.Key) (*ari.MailboxData, error) {
 
 // Update updates the new and old message counts of the mailbox
 func (m *Mailbox) Update(key *ari.Key, oldMessages int, newMessages int) error {
-	req := map[string]string{
-		"oldMessages": strconv.Itoa(oldMessages),
-		"newMessages": strconv.Itoa(newMessages),
+	if key == nil || key.ID == "" {
+		return errors.New("mailbox key not supplied")
 	}
-
-	return m.client.put("/mailboxes/"+key.ID, nil, &req)
+	return m.client.put("/mailboxes/"+url.PathEscape(key.ID), nil, &struct {
+		OldMessages int `json:"oldMessages"`
+		NewMessages int `json:"newMessages"`
+	}{OldMessages: oldMessages, NewMessages: newMessages})
 }
 
 // Delete deletes the mailbox

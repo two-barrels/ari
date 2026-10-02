@@ -2,9 +2,60 @@ package native
 
 import (
 	"errors"
+	"net/url"
+	"strconv"
+	"strings"
 
-	"github.com/CyCoreSystems/ari/v5"
+	"github.com/two-barrels/ari/v6"
 )
+
+func endpointReferQuery(opts ari.EndpointReferOptions, requireTo bool) (url.Values, error) {
+	if opts.From == "" || opts.ReferTo == "" || requireTo && opts.To == "" {
+		return nil, errors.New("required REFER parameter not supplied")
+	}
+	query := url.Values{"from": {opts.From}, "refer_to": {opts.ReferTo}}
+	if requireTo {
+		query.Set("to", opts.To)
+	}
+	if opts.ToSelf != nil {
+		query.Set("to_self", strconv.FormatBool(*opts.ToSelf))
+	}
+	return query, nil
+}
+
+func endpointReferBody(variables map[string]string) any {
+	if variables == nil {
+		return nil
+	}
+	return &struct {
+		Variables map[string]string `json:"variables"`
+	}{Variables: variables}
+}
+
+// Refer sends a REFER to the endpoint or technology URI named by opts.To.
+func (e *Endpoint) Refer(_ *ari.Key, opts ari.EndpointReferOptions) error {
+	query, err := endpointReferQuery(opts, true)
+	if err != nil {
+		return err
+	}
+	return e.client.post("/endpoints/refer?"+query.Encode(), nil, endpointReferBody(opts.Variables))
+}
+
+// ReferToEndpoint sends a REFER to the endpoint identified by key.
+func (e *Endpoint) ReferToEndpoint(key *ari.Key, opts ari.EndpointReferOptions) error {
+	if key == nil || key.Kind != ari.EndpointKey {
+		return errors.New("endpoint key not supplied")
+	}
+	tech, resource, ok := strings.Cut(key.ID, "/")
+	if !ok || tech == "" || resource == "" {
+		return errors.New("endpoint key must contain technology and resource")
+	}
+	query, err := endpointReferQuery(opts, false)
+	if err != nil {
+		return err
+	}
+	return e.client.post("/endpoints/"+url.PathEscape(tech)+"/"+url.PathEscape(resource)+"/refer?"+query.Encode(), nil, endpointReferBody(opts.Variables))
+}
 
 // Endpoint provides the ARI Endpoint accessors for the native client
 type Endpoint struct {

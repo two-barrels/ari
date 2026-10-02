@@ -6,6 +6,6 @@ pkgname: "arimocks"
 template-data:
   unroll-variadic: true
 packages:
-  github.com/CyCoreSystems/ari/v5:
+  github.com/two-barrels/ari/v6:
     config:
       all: true

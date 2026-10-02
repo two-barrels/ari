@@ -10,7 +10,7 @@ import (
 // EventTypes enumerates the list of event types
 type EventTypes struct {
 	All string
-	{{range .}}{{.Name}} string
+	{{range .Events}}{{.Name}} string
 	{{end}}
 }
 
@@ -19,7 +19,7 @@ var Events EventTypes
 
 func init() {
 	Events.All = "all"
-	{{range .}} Events.{{.Name}} = "{{.Event}}"
+	{{range .Events}} Events.{{.Name}} = "{{.Event}}"
 	{{end}}
 }
 
@@ -36,16 +36,18 @@ func DecodeEvent(data []byte) (Event,error) {
    }
 
    switch typer.Type {
-   {{range .}}case Events.{{.Name}}:
+   {{range .Events}}case Events.{{.Name}}:
       var e {{.Name}}
       err = json.Unmarshal(data, &e)
       return &e, err
    {{end}}
    }
-   return nil, eris.New("unhandled type: "+typer.Type)
+   var e UnknownEvent
+   err = json.Unmarshal(data, &e)
+   return &e, err
 }
 
-{{range .}}
+{{range .Events}}
 // {{.Name}} - "{{.Description}}"
 type {{.Name}} struct {
    EventData `json:",inline"`
@@ -55,5 +57,29 @@ type {{.Name}} struct {
 
 	{{range .Properties}}{{.Name}} {{.Type}} {{.Mapping}} {{.Description}}
 	{{end}} }
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *{{.Name}}) UnmarshalJSON(data []byte) error {
+   type alias {{.Name}}
+   if err := json.Unmarshal(data, (*alias)(e)); err != nil { return err }
+   e.EventData.setRaw(data)
+   return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *{{.Name}}) MarshalJSON() ([]byte, error) {
+   type alias {{.Name}}
+   typed, err := json.Marshal((*alias)(e))
+   if err != nil { return nil, err }
+   return mergeEventJSON(e.EventData.raw, typed)
+}
 {{end}}
 
+{{range .Models}}
+// {{.Name}} - "{{.Description}}"
+// This is event payload data, not a standalone ARI event.
+type {{.Name}} struct {
+   {{range .Properties}}{{.Name}} {{.Type}} {{.Mapping}} {{.Description}}
+   {{end}}
+}
+{{end}}

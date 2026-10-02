@@ -1,11 +1,11 @@
 package native
 
 import (
-	"fmt"
+	"net/url"
 
 	"github.com/rotisserie/eris"
 
-	"github.com/CyCoreSystems/ari/v5"
+	"github.com/two-barrels/ari/v6"
 )
 
 // Asterisk provides the ARI Asterisk accessors for a native client
@@ -39,12 +39,29 @@ func (a *Asterisk) Config() ari.Config {
 // Info returns various data about the Asterisk system
 // Equivalent to GET /asterisk/info
 func (a *Asterisk) Info(key *ari.Key) (*ari.AsteriskInfo, error) {
+	return a.InfoWithOptions(key, ari.AsteriskInfoOptions{})
+}
+
+func (a *Asterisk) InfoWithOptions(key *ari.Key, opts ari.AsteriskInfoOptions) (*ari.AsteriskInfo, error) {
 	var m ari.AsteriskInfo
+	path := "/asterisk/info"
+	if opts.Only != "" {
+		path += "?" + url.Values{"only": {opts.Only}}.Encode()
+	}
 
 	return &m, eris.Wrap(
-		a.client.get("/asterisk/info", &m),
+		a.client.get(path, &m),
 		"failed to get asterisk info",
 	)
+}
+
+// Ping returns the ARI ping response from Asterisk.
+func (a *Asterisk) Ping(key *ari.Key) (*ari.AsteriskPing, error) {
+	var result ari.AsteriskPing
+	if err := a.client.get("/asterisk/ping", &result); err != nil {
+		return nil, eris.Wrap(err, "failed to ping asterisk")
+	}
+	return &result, nil
 }
 
 // AsteriskVariables provides the ARI Variables accessors for server-level variables
@@ -64,7 +81,8 @@ func (a *AsteriskVariables) Get(key *ari.Key) (string, error) {
 		Value string `json:"value"`
 	}
 
-	err := a.client.get(fmt.Sprintf("/asterisk/variable?variable=%s", key.ID), &m)
+	query := url.Values{"variable": {key.ID}}
+	err := a.client.get("/asterisk/variable?"+query.Encode(), &m)
 	if err != nil {
 		return "", eris.Wrapf(err, "Error getting asterisk variable '%v'", key.ID)
 	}
@@ -75,16 +93,14 @@ func (a *AsteriskVariables) Get(key *ari.Key) (string, error) {
 // Set sets a global channel variable
 // (Equivalent to POST /asterisk/variable)
 func (a *AsteriskVariables) Set(key *ari.Key, value string) (err error) {
-	req := struct {
-		Variable string `json:"variable"`
-		Value    string `json:"value,omitempty"`
-	}{
-		Variable: key.ID,
-		Value:    value,
+	if key == nil || key.ID == "" {
+		return eris.New("variable key not supplied")
 	}
-
 	return eris.Wrapf(
-		a.client.post("/asterisk/variable", nil, &req),
+		a.client.post("/asterisk/variable", nil, &struct {
+			Variable string `json:"variable"`
+			Value    string `json:"value"`
+		}{Variable: key.ID, Value: value}),
 		"Error setting asterisk variable '%s' to '%s'", key.ID, value,
 	)
 }

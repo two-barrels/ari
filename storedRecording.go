@@ -1,5 +1,17 @@
 package ari
 
+import (
+	"context"
+	"io"
+)
+
+// RecordingFile is a binary recording response. Close Body after reading it.
+type RecordingFile struct {
+	Body        io.ReadCloser
+	ContentType string
+	Size        int64 // -1 when Asterisk does not provide a length.
+}
+
 // StoredRecording represents a communication path interacting with an Asterisk
 // server for stored recording resources
 type StoredRecording interface {
@@ -11,6 +23,9 @@ type StoredRecording interface {
 
 	// data gets the data for the stored recording
 	Data(key *Key) (*StoredRecordingData, error)
+
+	// File streams the binary recording. The context controls cancellation.
+	File(ctx context.Context, key *Key) (*RecordingFile, error)
 
 	// Copy copies the recording to the destination name
 	//
@@ -80,6 +95,11 @@ func (s *StoredRecordingHandle) Exec() (err error) {
 // Data gets the data for the stored recording
 func (s *StoredRecordingHandle) Data() (*StoredRecordingData, error) {
 	return s.s.Data(s.key)
+}
+
+// File streams this recording's binary file.
+func (s *StoredRecordingHandle) File(ctx context.Context) (*RecordingFile, error) {
+	return s.s.File(ctx, s.key)
 }
 
 // Copy copies the stored recording.

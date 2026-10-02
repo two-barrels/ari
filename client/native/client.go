@@ -8,15 +8,16 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rotisserie/eris"
 	"golang.org/x/exp/slog"
 	"golang.org/x/net/websocket"
 
-	"github.com/CyCoreSystems/ari/v5"
-	"github.com/CyCoreSystems/ari/v5/rid"
-	"github.com/CyCoreSystems/ari/v5/stdbus"
+	"github.com/two-barrels/ari/v6"
+	"github.com/two-barrels/ari/v6/rid"
+	"github.com/two-barrels/ari/v6/stdbus"
 )
 
 // Options describes the options for connecting to
@@ -49,6 +50,10 @@ type Options struct {
 
 	// Logger provides a logger which should be used for this client.
 	Logger *slog.Logger
+
+	// HTTPClient sends ARI REST requests. When nil, a client using the package
+	// RequestTimeout is created.
+	HTTPClient *http.Client
 }
 
 // ConnectWithContext creates and connects a new Client to Asterisk ARI.
@@ -143,9 +148,15 @@ func New(opts *Options) *Client {
 			&slog.HandlerOptions{Level: slog.LevelError}))
 	}
 
+	httpClient := opts.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: RequestTimeout}
+	}
+
 	return &Client{
-		appName: opts.Application,
-		Options: opts,
+		appName:    opts.Application,
+		Options:    opts,
+		httpClient: httpClient,
 	}
 }
 
@@ -162,13 +173,13 @@ type Client struct {
 	WSConfig *websocket.Config
 
 	// connected is a flag indicating whether the Client is connected to Asterisk
-	connected bool
+	connected atomic.Bool
 
 	// Bus the event bus for the Client
 	bus ari.Bus
 
 	// httpClient is the reusable HTTP client on which commands to Asterisk are sent
-	httpClient http.Client
+	httpClient *http.Client
 
 	cancel context.CancelFunc
 }
@@ -180,7 +191,7 @@ func (c *Client) ApplicationName() string {
 
 // Connected indicates whether the websocket is connected
 func (c *Client) Connected() bool {
-	return c.connected
+	return c.connected.Load()
 }
 
 // Close shuts down the ARI client
@@ -191,7 +202,7 @@ func (c *Client) Close() {
 		c.cancel()
 	}
 
-	c.connected = false
+	c.connected.Store(false)
 }
 
 // Application returns the ARI Application accessors for this client
@@ -289,7 +300,7 @@ func (c *Client) ConnectWithContext(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	c.cancel = cancel
 
-	if c.connected {
+	if c.Connected() {
 		cancel()
 		return eris.New("already connected")
 	}
@@ -374,7 +385,7 @@ func (c *Client) listen(ctx context.Context, wg *sync.WaitGroup) {
 		}
 
 		// We are connected
-		c.connected = true
+		c.connected.Store(true)
 
 		// Signal that we are connected (the first time only)
 		if wg != nil {
@@ -387,13 +398,13 @@ func (c *Client) listen(ctx context.Context, wg *sync.WaitGroup) {
 		case err = <-c.wsRead(ws):
 			c.Options.Logger.Error("read failure on websocket", "error", err)
 
-			c.connected = false
+			c.connected.Store(false)
 
 			time.Sleep(10 * time.Millisecond)
 		}
 
 		// Make sure our websocket connection is closed before looping
-		c.connected = false
+		c.connected.Store(false)
 
 		err = ws.Close()
 		if err != nil {
