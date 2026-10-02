@@ -1,6 +1,9 @@
 package ari
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // Event is the top level event interface
 type Event interface {
@@ -28,6 +31,9 @@ type Event interface {
 
 // EventData provides the basic metadata for an ARI event
 type EventData struct {
+	// raw retains fields that are not represented by the current typed model.
+	raw json.RawMessage
+
 	// Application indicates the ARI application which emitted this event
 	Application string `json:"application"`
 
@@ -43,6 +49,8 @@ type EventData struct {
 	// Type is the type name of this event
 	Type string `json:"type"`
 }
+
+func (e *EventData) eventData() *EventData { return e }
 
 // GetApplication gets the application of the event
 func (e *EventData) GetApplication() string {
@@ -81,6 +89,57 @@ func (e *EventData) SetDialog(id string) {
 }
 
 // implementations of events
+
+// Application registration notifications have no resource key.
+func (evt *ApplicationRegistered) Keys() Keys   { return nil }
+func (evt *ApplicationUnregistered) Keys() Keys { return nil }
+
+func (evt *CallBroadcast) Keys() Keys {
+	if evt.Channel.ID == "" {
+		return nil
+	}
+	return Keys{evt.Key(ChannelKey, evt.Channel.ID)}
+}
+
+func (evt *CallClaimed) Keys() Keys {
+	if evt.Channel.ID == "" {
+		return nil
+	}
+	return Keys{evt.Key(ChannelKey, evt.Channel.ID)}
+}
+
+func (evt *ChannelToneDetected) Keys() Keys {
+	if evt.Channel.ID == "" {
+		return nil
+	}
+	return Keys{evt.Key(ChannelKey, evt.Channel.ID)}
+}
+
+func (evt *ChannelTransfer) Keys() (keys Keys) {
+	seen := make(map[string]bool)
+	add := func(kind, id string) {
+		if id != "" && !seen[kind+":"+id] {
+			keys = append(keys, evt.Key(kind, id))
+			seen[kind+":"+id] = true
+		}
+	}
+	for _, channel := range []ChannelData{
+		evt.ReferTo.DestinationChannel, evt.ReferTo.ConnectedChannel,
+		evt.ReferredBy.SourceChannel, evt.ReferredBy.ConnectedChannel,
+	} {
+		add(ChannelKey, channel.ID)
+	}
+	for _, bridge := range []BridgeData{evt.ReferTo.Bridge, evt.ReferredBy.Bridge} {
+		add(BridgeKey, bridge.ID)
+		for _, id := range bridge.ChannelIDs {
+			add(ChannelKey, id)
+		}
+	}
+	return keys
+}
+
+// REST over WebSocket responses have a transaction ID, but no ARI resource key.
+func (evt *RESTResponse) Keys() Keys { return nil }
 
 // Keys returns the list of keys associated with this event
 func (evt *ApplicationMoveFailed) Keys() (sx Keys) {
@@ -334,11 +393,6 @@ func (evt *ChannelVarset) Keys() (sx Keys) {
 }
 
 // Keys returns the list of keys associated with this event
-func (evt *ContactInfo) Keys() (sx Keys) {
-	return
-}
-
-// Keys returns the list of keys associated with this event
 func (evt *ContactStatusChange) Keys() (sx Keys) {
 	sx = append(sx, evt.Key(EndpointKey, endpointKeyID(evt.Endpoint.Technology, evt.Endpoint.Resource)))
 	return
@@ -368,16 +422,6 @@ func (evt *Dial) Keys() (sx Keys) {
 // Keys returns the list of keys associated with this event
 func (evt *EndpointStateChange) Keys() (sx Keys) {
 	sx = append(sx, evt.Key(EndpointKey, endpointKeyID(evt.Endpoint.Technology, evt.Endpoint.Resource)))
-	return
-}
-
-// Keys returns the list of keys associated with this event
-func (evt *MissingParams) Keys() (sx Keys) {
-	return
-}
-
-// Keys returns the list of keys associated with this event
-func (evt *Peer) Keys() (sx Keys) {
 	return
 }
 

@@ -1,9 +1,10 @@
 package main
 
-// Generate event code from the events.json swagger
+// Generate event code from Asterisk's events.json Swagger specification.
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -14,28 +15,40 @@ import (
 	"golang.org/x/text/language"
 )
 
-var typeMappings map[string]string
+var typeMappings = map[string]string{
+	"boolean":         "bool",
+	"Channel":         "ChannelData",
+	"Bridge":          "BridgeData",
+	"Playback":        "PlaybackData",
+	"LiveRecording":   "LiveRecordingData",
+	"StoredRecording": "StoredRecordingData",
+	"Endpoint":        "EndpointData",
+	"DeviceState":     "DeviceStateData",
+	"TextMessage":     "TextMessageData",
+	"object":          "any",
+}
 
-func init() {
-	typeMappings = make(map[string]string)
-	typeMappings["boolean"] = "bool"
-	typeMappings["Channel"] = "ChannelData"
-	typeMappings["List[string]"] = "[]string"
-	typeMappings["Bridge"] = "BridgeData"
-	typeMappings["Playback"] = "PlaybackData"
-	typeMappings["LiveRecording"] = "LiveRecordingData"
-	typeMappings["StoredRecording"] = "StoredRecordingData"
-	typeMappings["Endpoint"] = "EndpointData"
-	typeMappings["DeviceState"] = "DeviceStateData"
-	typeMappings["TextMessage"] = "TextMessageData"
-	typeMappings["object"] = "interface{}"
+type spec struct {
+	Models map[string]model `json:"models"`
+}
+
+type model struct {
+	Description string               `json:"description"`
+	Properties  map[string]modelProp `json:"properties"`
+	SubTypes    []string             `json:"subTypes"`
+}
+
+type modelProp struct {
+	Description string `json:"description"`
+	Type        string `json:"type"`
+	Required    *bool  `json:"required"`
 }
 
 type event struct {
 	Name        string
 	Event       string
 	Description string
-	Properties  propList
+	Properties  []prop
 }
 
 type prop struct {
@@ -44,155 +57,148 @@ type prop struct {
 	Mapping     string
 	Type        string
 	Description string
-	Required    bool
 }
 
-type propList []prop
-
-func (pl propList) Len() int {
-	return len(pl)
-}
-
-func (pl propList) Less(l int, r int) bool {
-	return pl[l].Name < pl[r].Name
-}
-
-func (pl propList) Swap(l int, r int) {
-	tmp := pl[r]
-	pl[r] = pl[l]
-	pl[l] = tmp
-}
-
-type eventList []event
-
-func (el eventList) Len() int {
-	return len(el)
-}
-
-func (el eventList) Less(l int, r int) bool {
-	return el[l].Name < el[r].Name
-}
-
-func (el eventList) Swap(l int, r int) {
-	tmp := el[r]
-	el[r] = el[l]
-	el[l] = tmp
+type generated struct {
+	Events []event
+	Models []event
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatalf("Usage: %s <template> <specFile.json>\n", os.Args[0])
-		return
+	if len(os.Args) != 3 {
+		log.Fatalf("usage: %s <template> <events.json>", os.Args[0])
 	}
-
-	templateFile := os.Args[1]
-	specFile := os.Args[2]
-
-	// load template
-	tmpl, err := template.New("eventsTemplate").ParseFiles(templateFile)
+	data, err := os.ReadFile(os.Args[2])
 	if err != nil {
-		log.Fatalln("failed to parse template", err)
+		log.Fatal(err)
 	}
-
-	// load file
-	input, err := os.Open(specFile)
+	result, err := generate(data)
 	if err != nil {
-		log.Fatalln("failed to open event definition file", err)
+		log.Fatal(err)
 	}
-
-	defer input.Close()
-
-	// parse data
-	data := make(map[string]any)
-	dec := json.NewDecoder(input)
-
-	if err := dec.Decode(&data); err != nil {
-		log.Fatalln("failed to decode event definition file", err)
+	tmpl, err := template.ParseFiles(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	// convert data
-
-	var events eventList
-
-	models, ok := data["models"].(map[string]any)
-	if !ok {
-		log.Fatalln("failed to get models")
+	if err := tmpl.ExecuteTemplate(os.Stdout, "template.tmpl", result); err != nil {
+		log.Fatal(err)
 	}
+}
 
-	if len(models) < 1 {
-		log.Fatalln("no models found")
+func generate(data []byte) (generated, error) {
+	var source spec
+	if err := json.Unmarshal(data, &source); err != nil {
+		return generated{}, err
 	}
-
-	for mkey, m := range models {
-		model := m.(map[string]any)
-		name := strings.ReplaceAll(mkey, "Id", "ID")
-
-		if name == "Message" || name == "Event" {
-			continue
+	base, ok := source.Models["Event"]
+	if !ok || len(base.SubTypes) == 0 {
+		return generated{}, fmt.Errorf("Event.subTypes is empty or missing")
+	}
+	result := generated{}
+	seen := make(map[string]bool)
+	dependencies := make(map[string]bool)
+	var resolveType func(string) (string, error)
+	resolveType = func(name string) (string, error) {
+		if strings.HasPrefix(name, "List[") && strings.HasSuffix(name, "]") {
+			item, err := resolveType(strings.TrimSuffix(strings.TrimPrefix(name, "List["), "]"))
+			return "[]" + item, err
 		}
-
-		var pl propList
-
-		props := model["properties"].(map[string]any)
-		for pkey, p := range props {
-			propm := p.(map[string]any)
-			desc, _ := propm["description"].(string)
-
-			desc = strings.ReplaceAll(desc, "\n", "")
-			desc = strings.ReplaceAll(desc, "\r", "")
-
-			if desc != "" {
-				desc = "// " + desc
+		if mapped, ok := typeMappings[name]; ok {
+			return mapped, nil
+		}
+		switch name {
+		case "string", "int", "bool":
+			return name, nil
+		}
+		if _, ok := source.Models[name]; ok {
+			dependencies[name] = true
+			return normalizeName(name), nil
+		}
+		return "", fmt.Errorf("unknown event property type %q", name)
+	}
+	build := func(name string) (event, error) {
+		model, ok := source.Models[name]
+		if !ok {
+			return event{}, fmt.Errorf("missing model %q", name)
+		}
+		item := event{Name: normalizeName(name), Event: name, Description: cleanDescription(model.Description)}
+		for jsonName, property := range model.Properties {
+			typ, err := resolveType(property.Type)
+			if err != nil {
+				return event{}, fmt.Errorf("%s.%s: %w", name, jsonName, err)
 			}
-
-			t, ok := typeMappings[propm["type"].(string)]
-			if !ok {
-				t = propm["type"].(string)
+			var fieldName string
+			for _, part := range strings.Split(jsonName, "_") {
+				fieldName += cases.Title(language.English).String(part)
 			}
-
-			var name string
-
-			items := strings.Split(pkey, "_")
-			for _, x := range items {
-				name += cases.Title(language.English).String(x)
+			mapping := "`json:\"" + jsonName + "\"`"
+			if property.Required != nil && !*property.Required {
+				omit := "omitempty"
+				// omitempty does not omit a zero struct, even if it implements
+				// MarshalJSON. This made absent optional event payloads appear
+				// with fabricated zero-valued resource data on the wire.
+				if _, ok := source.Models[property.Type]; ok && typ != "any" {
+					omit = "omitzero"
+				}
+				if strings.HasSuffix(typ, "Data") {
+					omit = "omitzero"
+				}
+				mapping = "`json:\"" + jsonName + "," + omit + "\"`"
 			}
-
-			required := true
-			if req, ok := propm["required"].(bool); ok {
-				required = req
+			description := cleanDescription(property.Description)
+			if description != "" {
+				description = "// " + description
 			}
-
-			mapping := "`json:\"" + pkey + "\"` "
-			if !required {
-				mapping = "`json:\"" + pkey + ",omitempty\"`"
-			}
-
-			pl = append(pl, prop{
-				Name:        name,
-				Mapping:     mapping,
-				JSONName:    pkey,
-				Type:        t,
-				Description: desc,
+			item.Properties = append(item.Properties, prop{
+				Name: fieldName, JSONName: jsonName, Type: typ, Mapping: mapping,
+				Description: description,
 			})
 		}
-
-		sort.Sort(pl)
-
-		desc, _ := model["description"].(string)
-		desc = strings.ReplaceAll(desc, "\n", "")
-		desc = strings.ReplaceAll(desc, "\r", "")
-
-		events = append(events, event{
-			Name:        name,
-			Event:       mkey,
-			Description: desc,
-			Properties:  pl,
-		})
+		sort.Slice(item.Properties, func(i, j int) bool { return item.Properties[i].Name < item.Properties[j].Name })
+		return item, nil
 	}
-
-	sort.Sort(events)
-
-	if err := tmpl.ExecuteTemplate(os.Stdout, "template.tmpl", events); err != nil {
-		log.Fatalln("failed to execute template:", err)
+	for _, name := range base.SubTypes {
+		if seen[name] {
+			return generated{}, fmt.Errorf("duplicate Event.subTypes entry %q", name)
+		}
+		seen[name] = true
+		item, err := build(name)
+		if err != nil {
+			return generated{}, err
+		}
+		result.Events = append(result.Events, item)
 	}
+	sort.Slice(result.Events, func(i, j int) bool { return result.Events[i].Name < result.Events[j].Name })
+	// Keep the formerly exported error model as data for source compatibility.
+	if _, ok := source.Models["MissingParams"]; ok {
+		dependencies["MissingParams"] = true
+	}
+	for {
+		var pending []string
+		for name := range dependencies {
+			if !seen[name] {
+				pending = append(pending, name)
+			}
+		}
+		if len(pending) == 0 {
+			break
+		}
+		sort.Strings(pending)
+		for _, name := range pending {
+			seen[name] = true
+			item, err := build(name)
+			if err != nil {
+				return generated{}, err
+			}
+			result.Models = append(result.Models, item)
+		}
+	}
+	sort.Slice(result.Models, func(i, j int) bool { return result.Models[i].Name < result.Models[j].Name })
+	return result, nil
+}
+
+func normalizeName(name string) string { return strings.ReplaceAll(name, "Id", "ID") }
+
+func cleanDescription(value string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(value, "\n", ""), "\r", "")
 }

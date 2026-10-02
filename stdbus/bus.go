@@ -18,7 +18,8 @@ type bus struct {
 
 	rwMux sync.RWMutex
 
-	closed bool
+	closed    bool
+	closeOnce sync.Once
 }
 
 // New creates and returns the event bus.
@@ -30,29 +31,43 @@ func New() ari.Bus {
 	return b
 }
 
-// Close closes out all subscriptions in the bus.
+// Close closes out all subscriptions in the bus. Concurrent and repeated
+// calls wait for the initial shutdown to finish.
 func (b *bus) Close() {
-	if b.closed {
-		return
-	}
+	b.closeOnce.Do(func() {
+		b.rwMux.Lock()
+		b.closed = true
+		subs := b.subs
+		b.subs = nil
+		b.rwMux.Unlock()
 
-	b.closed = true
-
-	for _, s := range b.subs {
-		s.Cancel()
-	}
+		// Cancel reacquires the bus lock through remove, so it must run
+		// after the subscription list has been detached and unlocked.
+		for _, s := range subs {
+			s.Cancel()
+		}
+	})
 }
 
 // Send sends the message to the bus
 func (b *bus) Send(e ari.Event) {
 	var matched bool
+	keys := e.Keys()
+	if len(keys) == 0 {
+		// Some ARI events describe the application itself and have no resource.
+		// They still belong on application-wide or all-event subscriptions.
+		keys = ari.Keys{e.Key("", "")}
+	}
 
 	b.rwMux.RLock()
 
 	// Disseminate the message to the subscribers
 	for _, s := range b.subs {
 		matched = false
-		for _, k := range e.Keys() {
+		for _, k := range keys {
+			if k.Kind == "" && k.ID == "" && s.key != nil && (s.key.Kind != "" || s.key.ID != "") {
+				continue
+			}
 			if matched {
 				break
 			}
@@ -76,19 +91,26 @@ func (b *bus) Send(e ari.Event) {
 }
 
 // Subscribe returns a subscription to the given list
-// of event types
+// of event types. After the bus is closed, it returns an already-cancelled
+// subscription whose Events channel is closed.
 func (b *bus) Subscribe(key *ari.Key, eTypes ...string) ari.Subscription {
 	s := newSubscription(b, key, eTypes...)
-	b.add(s)
+	if !b.add(s) {
+		s.Cancel()
+	}
 
 	return s
 }
 
 // add appends a new subscription to the bus
-func (b *bus) add(s *subscription) {
+func (b *bus) add(s *subscription) bool {
 	b.rwMux.Lock()
+	defer b.rwMux.Unlock()
+	if b.closed {
+		return false
+	}
 	b.subs = append(b.subs, s)
-	b.rwMux.Unlock()
+	return true
 }
 
 // remove deletes the given subscription from the bus
@@ -145,15 +167,13 @@ func (s *subscription) Cancel() {
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.closed {
-		s.mu.Unlock()
 		return
 	}
 
 	s.closed = true
-
-	s.mu.Unlock()
 
 	// Remove the subscription from the bus
 	if s.b != nil {

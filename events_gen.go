@@ -4,7 +4,6 @@ package ari
 
 import (
 	"encoding/json"
-
 	"github.com/rotisserie/eris"
 )
 
@@ -12,13 +11,17 @@ import (
 type EventTypes struct {
 	All                      string
 	ApplicationMoveFailed    string
+	ApplicationRegistered    string
 	ApplicationReplaced      string
+	ApplicationUnregistered  string
 	BridgeAttendedTransfer   string
 	BridgeBlindTransfer      string
 	BridgeCreated            string
 	BridgeDestroyed          string
 	BridgeMerged             string
 	BridgeVideoSourceChanged string
+	CallBroadcast            string
+	CallClaimed              string
 	ChannelCallerID          string
 	ChannelConnectedLine     string
 	ChannelCreated           string
@@ -32,20 +35,20 @@ type EventTypes struct {
 	ChannelStateChange       string
 	ChannelTalkingFinished   string
 	ChannelTalkingStarted    string
+	ChannelToneDetected      string
+	ChannelTransfer          string
 	ChannelUnhold            string
 	ChannelUserevent         string
 	ChannelVarset            string
-	ContactInfo              string
 	ContactStatusChange      string
 	DeviceStateChanged       string
 	Dial                     string
 	EndpointStateChange      string
-	MissingParams            string
-	Peer                     string
 	PeerStatusChange         string
 	PlaybackContinuing       string
 	PlaybackFinished         string
 	PlaybackStarted          string
+	RESTResponse             string
 	RecordingFailed          string
 	RecordingFinished        string
 	RecordingStarted         string
@@ -60,13 +63,17 @@ var Events EventTypes
 func init() {
 	Events.All = "all"
 	Events.ApplicationMoveFailed = "ApplicationMoveFailed"
+	Events.ApplicationRegistered = "ApplicationRegistered"
 	Events.ApplicationReplaced = "ApplicationReplaced"
+	Events.ApplicationUnregistered = "ApplicationUnregistered"
 	Events.BridgeAttendedTransfer = "BridgeAttendedTransfer"
 	Events.BridgeBlindTransfer = "BridgeBlindTransfer"
 	Events.BridgeCreated = "BridgeCreated"
 	Events.BridgeDestroyed = "BridgeDestroyed"
 	Events.BridgeMerged = "BridgeMerged"
 	Events.BridgeVideoSourceChanged = "BridgeVideoSourceChanged"
+	Events.CallBroadcast = "CallBroadcast"
+	Events.CallClaimed = "CallClaimed"
 	Events.ChannelCallerID = "ChannelCallerId"
 	Events.ChannelConnectedLine = "ChannelConnectedLine"
 	Events.ChannelCreated = "ChannelCreated"
@@ -80,26 +87,27 @@ func init() {
 	Events.ChannelStateChange = "ChannelStateChange"
 	Events.ChannelTalkingFinished = "ChannelTalkingFinished"
 	Events.ChannelTalkingStarted = "ChannelTalkingStarted"
+	Events.ChannelToneDetected = "ChannelToneDetected"
+	Events.ChannelTransfer = "ChannelTransfer"
 	Events.ChannelUnhold = "ChannelUnhold"
 	Events.ChannelUserevent = "ChannelUserevent"
 	Events.ChannelVarset = "ChannelVarset"
-	Events.ContactInfo = "ContactInfo"
 	Events.ContactStatusChange = "ContactStatusChange"
 	Events.DeviceStateChanged = "DeviceStateChanged"
 	Events.Dial = "Dial"
 	Events.EndpointStateChange = "EndpointStateChange"
-	Events.MissingParams = "MissingParams"
-	Events.Peer = "Peer"
 	Events.PeerStatusChange = "PeerStatusChange"
 	Events.PlaybackContinuing = "PlaybackContinuing"
 	Events.PlaybackFinished = "PlaybackFinished"
 	Events.PlaybackStarted = "PlaybackStarted"
+	Events.RESTResponse = "RESTResponse"
 	Events.RecordingFailed = "RecordingFailed"
 	Events.RecordingFinished = "RecordingFinished"
 	Events.RecordingStarted = "RecordingStarted"
 	Events.StasisEnd = "StasisEnd"
 	Events.StasisStart = "StasisStart"
 	Events.TextMessageReceived = "TextMessageReceived"
+
 }
 
 // DecodeEvent converts a JSON-encoded event to an ARI event.
@@ -119,8 +127,16 @@ func DecodeEvent(data []byte) (Event, error) {
 		var e ApplicationMoveFailed
 		err = json.Unmarshal(data, &e)
 		return &e, err
+	case Events.ApplicationRegistered:
+		var e ApplicationRegistered
+		err = json.Unmarshal(data, &e)
+		return &e, err
 	case Events.ApplicationReplaced:
 		var e ApplicationReplaced
+		err = json.Unmarshal(data, &e)
+		return &e, err
+	case Events.ApplicationUnregistered:
+		var e ApplicationUnregistered
 		err = json.Unmarshal(data, &e)
 		return &e, err
 	case Events.BridgeAttendedTransfer:
@@ -145,6 +161,14 @@ func DecodeEvent(data []byte) (Event, error) {
 		return &e, err
 	case Events.BridgeVideoSourceChanged:
 		var e BridgeVideoSourceChanged
+		err = json.Unmarshal(data, &e)
+		return &e, err
+	case Events.CallBroadcast:
+		var e CallBroadcast
+		err = json.Unmarshal(data, &e)
+		return &e, err
+	case Events.CallClaimed:
+		var e CallClaimed
 		err = json.Unmarshal(data, &e)
 		return &e, err
 	case Events.ChannelCallerID:
@@ -199,6 +223,14 @@ func DecodeEvent(data []byte) (Event, error) {
 		var e ChannelTalkingStarted
 		err = json.Unmarshal(data, &e)
 		return &e, err
+	case Events.ChannelToneDetected:
+		var e ChannelToneDetected
+		err = json.Unmarshal(data, &e)
+		return &e, err
+	case Events.ChannelTransfer:
+		var e ChannelTransfer
+		err = json.Unmarshal(data, &e)
+		return &e, err
 	case Events.ChannelUnhold:
 		var e ChannelUnhold
 		err = json.Unmarshal(data, &e)
@@ -209,10 +241,6 @@ func DecodeEvent(data []byte) (Event, error) {
 		return &e, err
 	case Events.ChannelVarset:
 		var e ChannelVarset
-		err = json.Unmarshal(data, &e)
-		return &e, err
-	case Events.ContactInfo:
-		var e ContactInfo
 		err = json.Unmarshal(data, &e)
 		return &e, err
 	case Events.ContactStatusChange:
@@ -231,14 +259,6 @@ func DecodeEvent(data []byte) (Event, error) {
 		var e EndpointStateChange
 		err = json.Unmarshal(data, &e)
 		return &e, err
-	case Events.MissingParams:
-		var e MissingParams
-		err = json.Unmarshal(data, &e)
-		return &e, err
-	case Events.Peer:
-		var e Peer
-		err = json.Unmarshal(data, &e)
-		return &e, err
 	case Events.PeerStatusChange:
 		var e PeerStatusChange
 		err = json.Unmarshal(data, &e)
@@ -253,6 +273,10 @@ func DecodeEvent(data []byte) (Event, error) {
 		return &e, err
 	case Events.PlaybackStarted:
 		var e PlaybackStarted
+		err = json.Unmarshal(data, &e)
+		return &e, err
+	case Events.RESTResponse:
+		var e RESTResponse
 		err = json.Unmarshal(data, &e)
 		return &e, err
 	case Events.RecordingFailed:
@@ -281,7 +305,9 @@ func DecodeEvent(data []byte) (Event, error) {
 		return &e, err
 
 	}
-	return nil, eris.New("unhandled type: " + typer.Type)
+	var e UnknownEvent
+	err = json.Unmarshal(data, &e)
+	return &e, err
 }
 
 // ApplicationMoveFailed - "Notification that trying to move a channel to another Stasis application failed."
@@ -296,12 +322,108 @@ type ApplicationMoveFailed struct {
 	Destination string      `json:"destination"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ApplicationMoveFailed) UnmarshalJSON(data []byte) error {
+	type alias ApplicationMoveFailed
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ApplicationMoveFailed) MarshalJSON() ([]byte, error) {
+	type alias ApplicationMoveFailed
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// ApplicationRegistered - "Notification that a Stasis app has been registered."
+type ApplicationRegistered struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ApplicationRegistered) UnmarshalJSON(data []byte) error {
+	type alias ApplicationRegistered
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ApplicationRegistered) MarshalJSON() ([]byte, error) {
+	type alias ApplicationRegistered
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ApplicationReplaced - "Notification that another WebSocket has taken over for an application.An application may only be subscribed to by a single WebSocket at a time. If multiple WebSockets attempt to subscribe to the same application, the newer WebSocket wins, and the older one receives this event."
 type ApplicationReplaced struct {
 	EventData `json:",inline"`
 
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ApplicationReplaced) UnmarshalJSON(data []byte) error {
+	type alias ApplicationReplaced
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ApplicationReplaced) MarshalJSON() ([]byte, error) {
+	type alias ApplicationReplaced
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// ApplicationUnregistered - "Notification that a Stasis app has been unregistered."
+type ApplicationUnregistered struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ApplicationUnregistered) UnmarshalJSON(data []byte) error {
+	type alias ApplicationUnregistered
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ApplicationUnregistered) MarshalJSON() ([]byte, error) {
+	type alias ApplicationUnregistered
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // BridgeAttendedTransfer - "Notification that an attended transfer has occurred."
@@ -319,14 +441,34 @@ type BridgeAttendedTransfer struct {
 	DestinationThreewayChannel ChannelData `json:"destination_threeway_channel"` // Transferer channel that survived the threeway result
 	DestinationType            string      `json:"destination_type"`             // How the transfer was accomplished
 	IsExternal                 bool        `json:"is_external"`                  // Whether the transfer was externally initiated or not
-	ReplaceChannel             ChannelData `json:"replace_channel,omitempty"`    // The channel that is replacing transferer_first_leg in the swap
+	ReplaceChannel             ChannelData `json:"replace_channel,omitzero"`     // The channel that is replacing transferer_first_leg in the swap
 	Result                     string      `json:"result"`                       // The result of the transfer attempt
-	TransferTarget             ChannelData `json:"transfer_target,omitempty"`    // The channel that is being transferred to
-	Transferee                 ChannelData `json:"transferee,omitempty"`         // The channel that is being transferred
+	TransferTarget             ChannelData `json:"transfer_target,omitzero"`     // The channel that is being transferred to
+	Transferee                 ChannelData `json:"transferee,omitzero"`          // The channel that is being transferred
 	TransfererFirstLeg         ChannelData `json:"transferer_first_leg"`         // First leg of the transferer
 	TransfererFirstLegBridge   BridgeData  `json:"transferer_first_leg_bridge"`  // Bridge the transferer first leg is in
 	TransfererSecondLeg        ChannelData `json:"transferer_second_leg"`        // Second leg of the transferer
 	TransfererSecondLegBridge  BridgeData  `json:"transferer_second_leg_bridge"` // Bridge the transferer second leg is in
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *BridgeAttendedTransfer) UnmarshalJSON(data []byte) error {
+	type alias BridgeAttendedTransfer
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *BridgeAttendedTransfer) MarshalJSON() ([]byte, error) {
+	type alias BridgeAttendedTransfer
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // BridgeBlindTransfer - "Notification that a blind transfer has occurred."
@@ -336,14 +478,34 @@ type BridgeBlindTransfer struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Bridge         BridgeData  `json:"bridge"`                    // The bridge being transferred
-	Channel        ChannelData `json:"channel"`                   // The channel performing the blind transfer
-	Context        string      `json:"context"`                   // The context transferred to
-	Exten          string      `json:"exten"`                     // The extension transferred to
-	IsExternal     bool        `json:"is_external"`               // Whether the transfer was externally initiated or not
-	ReplaceChannel ChannelData `json:"replace_channel,omitempty"` // The channel that is replacing transferer when the transferee(s) can not be transferred directly
-	Result         string      `json:"result"`                    // The result of the transfer attempt
-	Transferee     ChannelData `json:"transferee,omitempty"`      // The channel that is being transferred
+	Bridge         BridgeData  `json:"bridge"`                   // The bridge being transferred
+	Channel        ChannelData `json:"channel"`                  // The channel performing the blind transfer
+	Context        string      `json:"context"`                  // The context transferred to
+	Exten          string      `json:"exten"`                    // The extension transferred to
+	IsExternal     bool        `json:"is_external"`              // Whether the transfer was externally initiated or not
+	ReplaceChannel ChannelData `json:"replace_channel,omitzero"` // The channel that is replacing transferer when the transferee(s) can not be transferred directly
+	Result         string      `json:"result"`                   // The result of the transfer attempt
+	Transferee     ChannelData `json:"transferee,omitzero"`      // The channel that is being transferred
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *BridgeBlindTransfer) UnmarshalJSON(data []byte) error {
+	type alias BridgeBlindTransfer
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *BridgeBlindTransfer) MarshalJSON() ([]byte, error) {
+	type alias BridgeBlindTransfer
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // BridgeCreated - "Notification that a bridge has been created."
@@ -356,6 +518,26 @@ type BridgeCreated struct {
 	Bridge BridgeData `json:"bridge"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *BridgeCreated) UnmarshalJSON(data []byte) error {
+	type alias BridgeCreated
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *BridgeCreated) MarshalJSON() ([]byte, error) {
+	type alias BridgeCreated
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // BridgeDestroyed - "Notification that a bridge has been destroyed."
 type BridgeDestroyed struct {
 	EventData `json:",inline"`
@@ -364,6 +546,26 @@ type BridgeDestroyed struct {
 	Header Header `json:"-"`
 
 	Bridge BridgeData `json:"bridge"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *BridgeDestroyed) UnmarshalJSON(data []byte) error {
+	type alias BridgeDestroyed
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *BridgeDestroyed) MarshalJSON() ([]byte, error) {
+	type alias BridgeDestroyed
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // BridgeMerged - "Notification that one bridge has merged into another."
@@ -377,6 +579,26 @@ type BridgeMerged struct {
 	BridgeFrom BridgeData `json:"bridge_from"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *BridgeMerged) UnmarshalJSON(data []byte) error {
+	type alias BridgeMerged
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *BridgeMerged) MarshalJSON() ([]byte, error) {
+	type alias BridgeMerged
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // BridgeVideoSourceChanged - "Notification that the source of video in a bridge has changed."
 type BridgeVideoSourceChanged struct {
 	EventData `json:",inline"`
@@ -386,6 +608,89 @@ type BridgeVideoSourceChanged struct {
 
 	Bridge           BridgeData `json:"bridge"`
 	OldVideoSourceId string     `json:"old_video_source_id,omitempty"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *BridgeVideoSourceChanged) UnmarshalJSON(data []byte) error {
+	type alias BridgeVideoSourceChanged
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *BridgeVideoSourceChanged) MarshalJSON() ([]byte, error) {
+	type alias BridgeVideoSourceChanged
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// CallBroadcast - "Notification that a channel is being broadcast to ARI applications for claiming."
+type CallBroadcast struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+
+	Called  string      `json:"called,omitempty"` // The called number.
+	Caller  string      `json:"caller,omitempty"` // The caller ID number.
+	Channel ChannelData `json:"channel"`          // The channel being broadcast.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *CallBroadcast) UnmarshalJSON(data []byte) error {
+	type alias CallBroadcast
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *CallBroadcast) MarshalJSON() ([]byte, error) {
+	type alias CallBroadcast
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// CallClaimed - "Notification that a broadcast channel has been successfully claimed by an ARI application."
+type CallClaimed struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+
+	Channel   ChannelData `json:"channel"`    // The channel that was claimed.
+	WinnerApp string      `json:"winner_app"` // The name of the ARI application that claimed the channel.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *CallClaimed) UnmarshalJSON(data []byte) error {
+	type alias CallClaimed
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *CallClaimed) MarshalJSON() ([]byte, error) {
+	type alias CallClaimed
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelCallerID - "Channel changed Caller ID."
@@ -400,6 +705,26 @@ type ChannelCallerID struct {
 	Channel               ChannelData `json:"channel"`                 // The channel that changed Caller ID.
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelCallerID) UnmarshalJSON(data []byte) error {
+	type alias ChannelCallerID
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelCallerID) MarshalJSON() ([]byte, error) {
+	type alias ChannelCallerID
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelConnectedLine - "Channel changed Connected Line."
 type ChannelConnectedLine struct {
 	EventData `json:",inline"`
@@ -408,6 +733,26 @@ type ChannelConnectedLine struct {
 	Header Header `json:"-"`
 
 	Channel ChannelData `json:"channel"` // The channel whose connected line has changed.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelConnectedLine) UnmarshalJSON(data []byte) error {
+	type alias ChannelConnectedLine
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelConnectedLine) MarshalJSON() ([]byte, error) {
+	type alias ChannelConnectedLine
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelCreated - "Notification that a channel has been created."
@@ -420,6 +765,26 @@ type ChannelCreated struct {
 	Channel ChannelData `json:"channel"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelCreated) UnmarshalJSON(data []byte) error {
+	type alias ChannelCreated
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelCreated) MarshalJSON() ([]byte, error) {
+	type alias ChannelCreated
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelDestroyed - "Notification that a channel has been destroyed."
 type ChannelDestroyed struct {
 	EventData `json:",inline"`
@@ -427,9 +792,30 @@ type ChannelDestroyed struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Cause    int         `json:"cause"`     // Integer representation of the cause of the hangup
-	CauseTxt string      `json:"cause_txt"` // Text representation of the cause of the hangup
-	Channel  ChannelData `json:"channel"`
+	Cause     int         `json:"cause"`     // Integer representation of the cause of the hangup
+	CauseTxt  string      `json:"cause_txt"` // Text representation of the cause of the hangup
+	Channel   ChannelData `json:"channel"`
+	TechCause int         `json:"tech_cause"` // Integer representation of the technology-specific off-nominal cause of the hangup.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelDestroyed) UnmarshalJSON(data []byte) error {
+	type alias ChannelDestroyed
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelDestroyed) MarshalJSON() ([]byte, error) {
+	type alias ChannelDestroyed
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelDialplan - "Channel changed location in the dialplan."
@@ -444,6 +830,26 @@ type ChannelDialplan struct {
 	DialplanAppData string      `json:"dialplan_app_data"` // The data to be passed to the application.
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelDialplan) UnmarshalJSON(data []byte) error {
+	type alias ChannelDialplan
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelDialplan) MarshalJSON() ([]byte, error) {
+	type alias ChannelDialplan
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelDtmfReceived - "DTMF received on a channel.This event is sent when the DTMF ends. There is no notification about the start of DTMF"
 type ChannelDtmfReceived struct {
 	EventData `json:",inline"`
@@ -454,6 +860,26 @@ type ChannelDtmfReceived struct {
 	Channel    ChannelData `json:"channel"`     // The channel on which DTMF was received
 	Digit      string      `json:"digit"`       // DTMF digit received (0-9, A-E, # or *)
 	DurationMs int         `json:"duration_ms"` // Number of milliseconds DTMF was received
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelDtmfReceived) UnmarshalJSON(data []byte) error {
+	type alias ChannelDtmfReceived
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelDtmfReceived) MarshalJSON() ([]byte, error) {
+	type alias ChannelDtmfReceived
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelEnteredBridge - "Notification that a channel has entered a bridge."
@@ -467,6 +893,26 @@ type ChannelEnteredBridge struct {
 	Channel ChannelData `json:"channel"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelEnteredBridge) UnmarshalJSON(data []byte) error {
+	type alias ChannelEnteredBridge
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelEnteredBridge) MarshalJSON() ([]byte, error) {
+	type alias ChannelEnteredBridge
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelHangupRequest - "A hangup was requested on the channel."
 type ChannelHangupRequest struct {
 	EventData `json:",inline"`
@@ -474,9 +920,30 @@ type ChannelHangupRequest struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Cause   int         `json:"cause"`   // Integer representation of the cause of the hangup.
-	Channel ChannelData `json:"channel"` // The channel on which the hangup was requested.
-	Soft    bool        `json:"soft"`    // Whether the hangup request was a soft hangup request.
+	Cause     int         `json:"cause"`      // Integer representation of the cause of the hangup.
+	Channel   ChannelData `json:"channel"`    // The channel on which the hangup was requested.
+	Soft      bool        `json:"soft"`       // Whether the hangup request was a soft hangup request.
+	TechCause int         `json:"tech_cause"` // Integer representation of the technology-specific off-nominal cause of the hangup.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelHangupRequest) UnmarshalJSON(data []byte) error {
+	type alias ChannelHangupRequest
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelHangupRequest) MarshalJSON() ([]byte, error) {
+	type alias ChannelHangupRequest
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelHold - "A channel initiated a media hold."
@@ -490,6 +957,26 @@ type ChannelHold struct {
 	Musicclass string      `json:"musicclass,omitempty"` // The music on hold class that the initiator requested.
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelHold) UnmarshalJSON(data []byte) error {
+	type alias ChannelHold
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelHold) MarshalJSON() ([]byte, error) {
+	type alias ChannelHold
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelLeftBridge - "Notification that a channel has left a bridge."
 type ChannelLeftBridge struct {
 	EventData `json:",inline"`
@@ -501,6 +988,26 @@ type ChannelLeftBridge struct {
 	Channel ChannelData `json:"channel"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelLeftBridge) UnmarshalJSON(data []byte) error {
+	type alias ChannelLeftBridge
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelLeftBridge) MarshalJSON() ([]byte, error) {
+	type alias ChannelLeftBridge
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelStateChange - "Notification of a channel's state change."
 type ChannelStateChange struct {
 	EventData `json:",inline"`
@@ -509,6 +1016,26 @@ type ChannelStateChange struct {
 	Header Header `json:"-"`
 
 	Channel ChannelData `json:"channel"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelStateChange) UnmarshalJSON(data []byte) error {
+	type alias ChannelStateChange
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelStateChange) MarshalJSON() ([]byte, error) {
+	type alias ChannelStateChange
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelTalkingFinished - "Talking is no longer detected on the channel."
@@ -522,6 +1049,26 @@ type ChannelTalkingFinished struct {
 	Duration int         `json:"duration"` // The length of time, in milliseconds, that talking was detected on the channel
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelTalkingFinished) UnmarshalJSON(data []byte) error {
+	type alias ChannelTalkingFinished
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelTalkingFinished) MarshalJSON() ([]byte, error) {
+	type alias ChannelTalkingFinished
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelTalkingStarted - "Talking was detected on the channel."
 type ChannelTalkingStarted struct {
 	EventData `json:",inline"`
@@ -530,6 +1077,88 @@ type ChannelTalkingStarted struct {
 	Header Header `json:"-"`
 
 	Channel ChannelData `json:"channel"` // The channel on which talking started.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelTalkingStarted) UnmarshalJSON(data []byte) error {
+	type alias ChannelTalkingStarted
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelTalkingStarted) MarshalJSON() ([]byte, error) {
+	type alias ChannelTalkingStarted
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// ChannelToneDetected - "Tone was detected on the channel."
+type ChannelToneDetected struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+
+	Channel ChannelData `json:"channel"` // The channel the tone was detected on.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelToneDetected) UnmarshalJSON(data []byte) error {
+	type alias ChannelToneDetected
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelToneDetected) MarshalJSON() ([]byte, error) {
+	type alias ChannelToneDetected
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// ChannelTransfer - "transfer on a channel."
+type ChannelTransfer struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+
+	ReferTo    ReferTo    `json:"refer_to"`        // Refer-To information with optionally both affected channels
+	ReferredBy ReferredBy `json:"referred_by"`     // Referred-By SIP Header according rfc3892
+	State      string     `json:"state,omitempty"` // Transfer State
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelTransfer) UnmarshalJSON(data []byte) error {
+	type alias ChannelTransfer
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelTransfer) MarshalJSON() ([]byte, error) {
+	type alias ChannelTransfer
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelUnhold - "A channel initiated a media unhold."
@@ -542,6 +1171,26 @@ type ChannelUnhold struct {
 	Channel ChannelData `json:"channel"` // The channel that initiated the unhold event.
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelUnhold) UnmarshalJSON(data []byte) error {
+	type alias ChannelUnhold
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelUnhold) MarshalJSON() ([]byte, error) {
+	type alias ChannelUnhold
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // ChannelUserevent - "User-generated event with additional user-defined fields in the object."
 type ChannelUserevent struct {
 	EventData `json:",inline"`
@@ -549,11 +1198,31 @@ type ChannelUserevent struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Bridge    BridgeData   `json:"bridge,omitempty"`   // A bridge that is signaled with the user event.
-	Channel   ChannelData  `json:"channel,omitempty"`  // A channel that is signaled with the user event.
-	Endpoint  EndpointData `json:"endpoint,omitempty"` // A endpoint that is signaled with the user event.
-	Eventname string       `json:"eventname"`          // The name of the user event.
-	Userevent interface{}  `json:"userevent"`          // Custom Userevent data
+	Bridge    BridgeData   `json:"bridge,omitzero"`   // A bridge that is signaled with the user event.
+	Channel   ChannelData  `json:"channel,omitzero"`  // A channel that is signaled with the user event.
+	Endpoint  EndpointData `json:"endpoint,omitzero"` // A endpoint that is signaled with the user event.
+	Eventname string       `json:"eventname"`         // The name of the user event.
+	Userevent any          `json:"userevent"`         // Custom Userevent data
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelUserevent) UnmarshalJSON(data []byte) error {
+	type alias ChannelUserevent
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelUserevent) MarshalJSON() ([]byte, error) {
+	type alias ChannelUserevent
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ChannelVarset - "Channel variable changed."
@@ -563,22 +1232,29 @@ type ChannelVarset struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Channel  ChannelData `json:"channel,omitempty"` // The channel on which the variable was set.If missing, the variable is a global variable.
-	Value    string      `json:"value"`             // The new value of the variable.
-	Variable string      `json:"variable"`          // The variable that changed.
+	Channel  ChannelData `json:"channel,omitzero"` // The channel on which the variable was set.If missing, the variable is a global variable.
+	Value    string      `json:"value"`            // The new value of the variable.
+	Variable string      `json:"variable"`         // The variable that changed.
 }
 
-// ContactInfo - "Detailed information about a contact on an endpoint."
-type ContactInfo struct {
-	EventData `json:",inline"`
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ChannelVarset) UnmarshalJSON(data []byte) error {
+	type alias ChannelVarset
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
 
-	// Header describes any transport-related metadata
-	Header Header `json:"-"`
-
-	Aor           string `json:"aor"`                      // The Address of Record this contact belongs to.
-	ContactStatus string `json:"contact_status"`           // The current status of the contact.
-	RoundtripUsec string `json:"roundtrip_usec,omitempty"` // Current round trip time, in microseconds, for the contact.
-	Uri           string `json:"uri"`                      // The location of the contact.
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ChannelVarset) MarshalJSON() ([]byte, error) {
+	type alias ChannelVarset
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // ContactStatusChange - "The state of a contact on an endpoint has changed."
@@ -592,6 +1268,26 @@ type ContactStatusChange struct {
 	Endpoint    EndpointData `json:"endpoint"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *ContactStatusChange) UnmarshalJSON(data []byte) error {
+	type alias ContactStatusChange
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *ContactStatusChange) MarshalJSON() ([]byte, error) {
+	type alias ContactStatusChange
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // DeviceStateChanged - "Notification that a device state has changed."
 type DeviceStateChanged struct {
 	EventData `json:",inline"`
@@ -602,6 +1298,26 @@ type DeviceStateChanged struct {
 	DeviceState DeviceStateData `json:"device_state"` // Device state object
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *DeviceStateChanged) UnmarshalJSON(data []byte) error {
+	type alias DeviceStateChanged
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *DeviceStateChanged) MarshalJSON() ([]byte, error) {
+	type alias DeviceStateChanged
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // Dial - "Dialing state has changed."
 type Dial struct {
 	EventData `json:",inline"`
@@ -609,12 +1325,32 @@ type Dial struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Caller     ChannelData `json:"caller,omitempty"`     // The calling channel.
+	Caller     ChannelData `json:"caller,omitzero"`      // The calling channel.
 	Dialstatus string      `json:"dialstatus"`           // Current status of the dialing attempt to the peer.
 	Dialstring string      `json:"dialstring,omitempty"` // The dial string for calling the peer channel.
 	Forward    string      `json:"forward,omitempty"`    // Forwarding target requested by the original dialed channel.
-	Forwarded  ChannelData `json:"forwarded,omitempty"`  // Channel that the caller has been forwarded to.
+	Forwarded  ChannelData `json:"forwarded,omitzero"`   // Channel that the caller has been forwarded to.
 	Peer       ChannelData `json:"peer"`                 // The dialed channel.
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *Dial) UnmarshalJSON(data []byte) error {
+	type alias Dial
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *Dial) MarshalJSON() ([]byte, error) {
+	type alias Dial
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // EndpointStateChange - "Endpoint state changed."
@@ -627,28 +1363,24 @@ type EndpointStateChange struct {
 	Endpoint EndpointData `json:"endpoint"`
 }
 
-// MissingParams - "Error event sent when required params are missing."
-type MissingParams struct {
-	EventData `json:",inline"`
-
-	// Header describes any transport-related metadata
-	Header Header `json:"-"`
-
-	Params []string `json:"params"` // A list of the missing parameters
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *EndpointStateChange) UnmarshalJSON(data []byte) error {
+	type alias EndpointStateChange
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
 }
 
-// Peer - "Detailed information about a remote peer that communicates with Asterisk."
-type Peer struct {
-	EventData `json:",inline"`
-
-	// Header describes any transport-related metadata
-	Header Header `json:"-"`
-
-	Address    string `json:"address,omitempty"` // The IP address of the peer.
-	Cause      string `json:"cause,omitempty"`   // An optional reason associated with the change in peer_status.
-	PeerStatus string `json:"peer_status"`       // The current state of the peer. Note that the values of the status are dependent on the underlying peer technology.
-	Port       string `json:"port,omitempty"`    // The port of the peer.
-	Time       string `json:"time,omitempty"`    // The last known time the peer was contacted.
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *EndpointStateChange) MarshalJSON() ([]byte, error) {
+	type alias EndpointStateChange
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // PeerStatusChange - "The state of a peer associated with an endpoint has changed."
@@ -662,6 +1394,26 @@ type PeerStatusChange struct {
 	Peer     Peer         `json:"peer"`
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *PeerStatusChange) UnmarshalJSON(data []byte) error {
+	type alias PeerStatusChange
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *PeerStatusChange) MarshalJSON() ([]byte, error) {
+	type alias PeerStatusChange
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // PlaybackContinuing - "Event showing the continuation of a media playback operation from one media URI to the next in the list."
 type PlaybackContinuing struct {
 	EventData `json:",inline"`
@@ -670,6 +1422,26 @@ type PlaybackContinuing struct {
 	Header Header `json:"-"`
 
 	Playback PlaybackData `json:"playback"` // Playback control object
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *PlaybackContinuing) UnmarshalJSON(data []byte) error {
+	type alias PlaybackContinuing
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *PlaybackContinuing) MarshalJSON() ([]byte, error) {
+	type alias PlaybackContinuing
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // PlaybackFinished - "Event showing the completion of a media playback operation."
@@ -682,6 +1454,26 @@ type PlaybackFinished struct {
 	Playback PlaybackData `json:"playback"` // Playback control object
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *PlaybackFinished) UnmarshalJSON(data []byte) error {
+	type alias PlaybackFinished
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *PlaybackFinished) MarshalJSON() ([]byte, error) {
+	type alias PlaybackFinished
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // PlaybackStarted - "Event showing the start of a media playback operation."
 type PlaybackStarted struct {
 	EventData `json:",inline"`
@@ -690,6 +1482,62 @@ type PlaybackStarted struct {
 	Header Header `json:"-"`
 
 	Playback PlaybackData `json:"playback"` // Playback control object
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *PlaybackStarted) UnmarshalJSON(data []byte) error {
+	type alias PlaybackStarted
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *PlaybackStarted) MarshalJSON() ([]byte, error) {
+	type alias PlaybackStarted
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// RESTResponse - "REST over Websocket Response."
+type RESTResponse struct {
+	EventData `json:",inline"`
+
+	// Header describes any transport-related metadata
+	Header Header `json:"-"`
+
+	ContentType   string `json:"content_type,omitempty"` // The Content-Type of the message body.
+	MessageBody   string `json:"message_body,omitempty"` // Response message body
+	ReasonPhrase  string `json:"reason_phrase"`          // HTTP reason phrase
+	RequestId     string `json:"request_id"`             // Opaque request id.  Will be whatever was specified on the original request.
+	StatusCode    int    `json:"status_code"`            // HTTP status code
+	TransactionId string `json:"transaction_id"`         // Opaque transaction id.  Will be whatever was specified on the original request.
+	Uri           string `json:"uri"`                    // Original request resource URI
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *RESTResponse) UnmarshalJSON(data []byte) error {
+	type alias RESTResponse
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *RESTResponse) MarshalJSON() ([]byte, error) {
+	type alias RESTResponse
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // RecordingFailed - "Event showing failure of a recording operation."
@@ -702,6 +1550,26 @@ type RecordingFailed struct {
 	Recording LiveRecordingData `json:"recording"` // Recording control object
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *RecordingFailed) UnmarshalJSON(data []byte) error {
+	type alias RecordingFailed
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *RecordingFailed) MarshalJSON() ([]byte, error) {
+	type alias RecordingFailed
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // RecordingFinished - "Event showing the completion of a recording operation."
 type RecordingFinished struct {
 	EventData `json:",inline"`
@@ -710,6 +1578,26 @@ type RecordingFinished struct {
 	Header Header `json:"-"`
 
 	Recording LiveRecordingData `json:"recording"` // Recording control object
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *RecordingFinished) UnmarshalJSON(data []byte) error {
+	type alias RecordingFinished
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *RecordingFinished) MarshalJSON() ([]byte, error) {
+	type alias RecordingFinished
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // RecordingStarted - "Event showing the start of a recording operation."
@@ -722,6 +1610,26 @@ type RecordingStarted struct {
 	Recording LiveRecordingData `json:"recording"` // Recording control object
 }
 
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *RecordingStarted) UnmarshalJSON(data []byte) error {
+	type alias RecordingStarted
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *RecordingStarted) MarshalJSON() ([]byte, error) {
+	type alias RecordingStarted
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
 // StasisEnd - "Notification that a channel has left a Stasis application."
 type StasisEnd struct {
 	EventData `json:",inline"`
@@ -730,6 +1638,26 @@ type StasisEnd struct {
 	Header Header `json:"-"`
 
 	Channel ChannelData `json:"channel"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *StasisEnd) UnmarshalJSON(data []byte) error {
+	type alias StasisEnd
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *StasisEnd) MarshalJSON() ([]byte, error) {
+	type alias StasisEnd
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // StasisStart - "Notification that a channel has entered a Stasis application."
@@ -741,7 +1669,27 @@ type StasisStart struct {
 
 	Args           []string    `json:"args"` // Arguments to the application
 	Channel        ChannelData `json:"channel"`
-	ReplaceChannel ChannelData `json:"replace_channel,omitempty"`
+	ReplaceChannel ChannelData `json:"replace_channel,omitzero"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *StasisStart) UnmarshalJSON(data []byte) error {
+	type alias StasisStart
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *StasisStart) MarshalJSON() ([]byte, error) {
+	type alias StasisStart
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
 }
 
 // TextMessageReceived - "A text message was received from an endpoint."
@@ -751,6 +1699,89 @@ type TextMessageReceived struct {
 	// Header describes any transport-related metadata
 	Header Header `json:"-"`
 
-	Endpoint EndpointData    `json:"endpoint,omitempty"`
+	Endpoint EndpointData    `json:"endpoint,omitzero"`
 	Message  TextMessageData `json:"message"`
+}
+
+// UnmarshalJSON retains fields that this version of the event model does not know.
+func (e *TextMessageReceived) UnmarshalJSON(data []byte) error {
+	type alias TextMessageReceived
+	if err := json.Unmarshal(data, (*alias)(e)); err != nil {
+		return err
+	}
+	e.EventData.setRaw(data)
+	return nil
+}
+
+// MarshalJSON forwards the original fields alongside typed field updates.
+func (e *TextMessageReceived) MarshalJSON() ([]byte, error) {
+	type alias TextMessageReceived
+	typed, err := json.Marshal((*alias)(e))
+	if err != nil {
+		return nil, err
+	}
+	return mergeEventJSON(e.EventData.raw, typed)
+}
+
+// AdditionalParam - "Protocol specific additional parameter"
+// This is event payload data, not a standalone ARI event.
+type AdditionalParam struct {
+	ParameterName  string `json:"parameter_name"`  // Name of the parameter
+	ParameterValue string `json:"parameter_value"` // Value of the parameter
+
+}
+
+// ContactInfo - "Detailed information about a contact on an endpoint."
+// This is event payload data, not a standalone ARI event.
+type ContactInfo struct {
+	Aor           string `json:"aor"`                      // The Address of Record this contact belongs to.
+	ContactStatus string `json:"contact_status"`           // The current status of the contact.
+	RoundtripUsec string `json:"roundtrip_usec,omitempty"` // Current round trip time, in microseconds, for the contact.
+	Uri           string `json:"uri"`                      // The location of the contact.
+
+}
+
+// MissingParams - "Error event sent when required params are missing."
+// This is event payload data, not a standalone ARI event.
+type MissingParams struct {
+	Params []string `json:"params"` // A list of the missing parameters
+
+}
+
+// Peer - "Detailed information about a remote peer that communicates with Asterisk."
+// This is event payload data, not a standalone ARI event.
+type Peer struct {
+	Address    string `json:"address,omitempty"` // The IP address of the peer.
+	Cause      string `json:"cause,omitempty"`   // An optional reason associated with the change in peer_status.
+	PeerStatus string `json:"peer_status"`       // The current state of the peer. Note that the values of the status are dependent on the underlying peer technology.
+	Port       string `json:"port,omitempty"`    // The port of the peer.
+	Time       string `json:"time,omitempty"`    // The last known time the peer was contacted.
+
+}
+
+// ReferTo - "transfer destination requested by transferee"
+// This is event payload data, not a standalone ARI event.
+type ReferTo struct {
+	Bridge               BridgeData          `json:"bridge,omitzero"`              // Bridge connecting both destination channels
+	ConnectedChannel     ChannelData         `json:"connected_channel,omitzero"`   // Channel, connected to the to be replaced channel
+	DestinationChannel   ChannelData         `json:"destination_channel,omitzero"` // The Channel Object, that is to be replaced
+	RequestedDestination RequiredDestination `json:"requested_destination"`
+}
+
+// ReferredBy - "transfer destination requested by transferee"
+// This is event payload data, not a standalone ARI event.
+type ReferredBy struct {
+	Bridge           BridgeData  `json:"bridge,omitzero"`            // Bridge connecting both Channels
+	ConnectedChannel ChannelData `json:"connected_channel,omitzero"` // Channel, Connected to the channel, receiving the transfer request on.
+	SourceChannel    ChannelData `json:"source_channel"`             // The channel on which the refer was received
+
+}
+
+// RequiredDestination - "Information about the requested destination"
+// This is event payload data, not a standalone ARI event.
+type RequiredDestination struct {
+	AdditionalProtocolParams []AdditionalParam `json:"additional_protocol_params,omitempty"` // List of additional protocol specific information
+	Destination              string            `json:"destination,omitempty"`                // Destination User Part. Only for Blind transfer. Mutually exclusive to protocol_id
+	ProtocolId               string            `json:"protocol_id,omitempty"`                // the requested protocol-id by the referee in case of SIP channel, this is a SIP Call ID, Mutually exclusive to destination
+
 }
