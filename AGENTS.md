@@ -1,6 +1,17 @@
+<!-- Created by two-barrels in 2026 for ARI v6 modernization. SPDX-License-Identifier: Apache-2.0 -->
+
 # ARI modernization handoff
 
 ## Release candidate status — 2026-10-02 (supersedes historical status below)
+
+The v6 branch now carries per-file two-barrels modification/creation notices
+relative to the pinned upstream commit in NOTICE. Run `go run ./tools/file-notices`
+to check additions/changes; use `--apply` to add notices. Event generation embeds
+the notice from its template; Makefile generation targets also restore notices.
+Keep original attribution and LICENSE intact. go.sum and the unmodified pinned
+Asterisk JSON use companion .notice files because inline comments would break
+their formats or the pinned bytes. These changes postdate rc.1: publish a new
+candidate before distributing them; never move the existing tag.
 
 PR #1 is merged into permanent `v6`; existing `main` and v5 tags remain intact.
 Published `v6.0.0-rc.1` points to `05e769a972ff5b11bb6db96195135cfe52f6db75`.

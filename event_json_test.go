@@ -1,3 +1,6 @@
+// Created by two-barrels in 2026 for ARI v6 modernization.
+// SPDX-License-Identifier: Apache-2.0
+
 package ari
 
 import (

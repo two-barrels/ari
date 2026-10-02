@@ -1,3 +1,5 @@
+<!-- Modified by two-barrels in 2026 for ARI v6 modernization. SPDX-License-Identifier: Apache-2.0 -->
+
 # ari - Golang Asterisk Rest Interface (ARI) library
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/two-barrels/ari/v6)
 

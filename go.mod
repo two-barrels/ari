@@ -1,3 +1,6 @@
+// Modified by two-barrels in 2026 for ARI v6 modernization.
+// SPDX-License-Identifier: Apache-2.0
+
 module github.com/two-barrels/ari/v6
 
 go 1.25.0

@@ -1,3 +1,6 @@
+# Modified by two-barrels in 2026 for ARI v6 modernization.
+# SPDX-License-Identifier: Apache-2.0
+
 name: Go
 
 on:
@@ -23,6 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
@@ -36,6 +40,8 @@ jobs:
           go mod tidy -diff
       - name: Vet
         run: go vet ./...
+      - name: Verify modification and creation notices
+        run: go run ./tools/file-notices
       - name: Build packages and examples
         run: |
           go build ./...

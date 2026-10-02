@@ -1,0 +1,15 @@
+Created by two-barrels in 2026 for ARI v6 modernization.
+
+This fork is derived from CyCoreSystems/ari, licensed under Apache License 2.0.
+Upstream copyright, license, patent, trademark and author notices are retained.
+Modified upstream files carry prominent two-barrels modification notices;
+new fork-authored files carry two-barrels creation notices. Generated files
+retain their generator attribution in addition to these notices.
+
+The unmodified Asterisk specification fixture retains its Digium attribution;
+its companion .notice records its source and addition to this fork. go.sum
+also has a companion .notice because checksum files do not support comments.
+These attribution notices do not modify the Apache License in LICENSE.
+
+Audit baseline: CyCoreSystems/ari 90f525536787cb75fdf89b1e57f6081f4b93d908.
+Run go run ./tools/file-notices to check current additions/modifications.

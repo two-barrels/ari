@@ -1,3 +1,6 @@
+// Created by two-barrels in 2026 for ARI v6 modernization.
+// SPDX-License-Identifier: Apache-2.0
+
 // Package testfixtures holds version expectations shared by the native client,
 // proxy, and specification checker tests. These are derived from the pinned
 // Asterisk 23 ARI Swagger metadata; live-server behavior must be tested later.
