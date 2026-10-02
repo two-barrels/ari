@@ -4,9 +4,10 @@
 
 PR #1 is merged into permanent `v6`; existing `main` and v5 tags remain intact.
 Published `v6.0.0-rc.1` points to `05e769a972ff5b11bb6db96195135cfe52f6db75`.
-The sibling proxy now requires this tag without a local replacement and is
-preparing its matching candidate. Run its published-tag release checker for
-the final distribution gate. Do not move published tags. Candidate evaluation
+The sibling proxy requires this tag without a local replacement and published
+its matching candidate at `8be33da28f494962efc18a95d05fc0d65deb7756`.
+Its published-tag checker passed for both modules without workspace or
+replacements. Do not move published tags. Candidate evaluation
 in phone-apps is next; stable v6 is not released. User accepts selected Asterisk
 22.10.1 live evidence and defers additional PBX and NATS/RabbitMQ tests. The
 remaining context/escaping/timeout/performance audits below remain future work.
