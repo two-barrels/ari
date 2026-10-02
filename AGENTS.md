@@ -20,6 +20,12 @@ Read `../ari-proxy/docs/ari-23-upgrade-plan.md` before extending the work. Its m
 
 ## Next work
 
+Branch strategy (2026-10-02): permanent origin/v6 was created from existing
+fork main; review PR https://github.com/two-barrels/ari/pull/1 targets v6.
+Main stays on v5. Merge reviewed modernization into v6 first; later it can
+become the default branch, or main can be preserved as v5 and v6 renamed main.
+CI includes v6 pushes. No PR merge or release tag has been performed yet.
+
 Review preparation: modernization is pushed to origin/codex/v6-modernization
 at fe4592b; hosted Go CI passed. This supersedes earlier unpushed/hosted-unverified
 notes. Draft release notes are in docs/v6-release-notes.md. Review PR submission

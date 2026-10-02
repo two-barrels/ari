@@ -2,7 +2,7 @@ name: Go
 
 on:
   push:
-    branches: [main, master, 'codex/**']
+    branches: [main, master, v6, 'codex/**']
   pull_request:
   workflow_dispatch:
 
