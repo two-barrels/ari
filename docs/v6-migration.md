@@ -1,9 +1,8 @@
 # Migrating ARI applications to v6
 
-Status: release preparation, 2026-10-01. This checkout uses
-`github.com/two-barrels/ari/v6`; that path does not establish release readiness.
-Use a reviewed development revision until the coordinated release gates pass.
-The README identifies v5 as the latest tagged release.
+Status: release candidate, 2026-10-02. Evaluate published
+`github.com/two-barrels/ari/v6@v6.0.0-rc.1` in a separate application migration
+branch. Stable v6 is not released; existing v5 consumers remain intact.
 
 ## Toolchain and imports
 

@@ -1,5 +1,16 @@
 # ARI modernization handoff
 
+## Release candidate status — 2026-10-02 (supersedes historical status below)
+
+PR #1 is merged into permanent `v6`; existing `main` and v5 tags remain intact.
+Published `v6.0.0-rc.1` points to `05e769a972ff5b11bb6db96195135cfe52f6db75`.
+The sibling proxy now requires this tag without a local replacement and is
+preparing its matching candidate. Run its published-tag release checker for
+the final distribution gate. Do not move published tags. Candidate evaluation
+in phone-apps is next; stable v6 is not released. User accepts selected Asterisk
+22.10.1 live evidence and defers additional PBX and NATS/RabbitMQ tests. The
+remaining context/escaping/timeout/performance audits below remain future work.
+
 ## Goal and repository relationship
 
 Modernize this Go ARI library and its sibling, `../ari-proxy`, for newer Asterisk REST Interface features. The initial priority was event fidelity through the proxy: ARI applications must receive every event and all event details, including fields unknown to this client's current typed models. The broader goal is support for every endpoint and option in the pinned Asterisk 23 REST specification, with performance and correctness fixes along the way.

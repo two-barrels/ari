@@ -1,6 +1,8 @@
-# ARI v6 release notes — draft
+# ARI v6.0.0-rc.1 release notes
 
-Module: `github.com/two-barrels/ari/v6`. No v6 tag has been published.
+Module: `github.com/two-barrels/ari/v6`. Published prerelease: `v6.0.0-rc.1`,
+at commit `05e769a972ff5b11bb6db96195135cfe52f6db75`. Existing v5 consumers
+remain intact; stable v6 and phone-apps adoption remain future work.
 
 ## Changes
 
@@ -42,7 +44,6 @@ release checklist.
 
 ## Publication order
 
-Review and freeze the ARI commit, choose an approved v6 tag, publish ARI first,
-and verify that exact tag from an external consumer. Then update the proxy to
-require it and remove the sibling replacement. No draft note authorizes merging,
-tagging, or artifact publication.
+ARI `v6.0.0-rc.1` was published first. Its downloaded packages pass race tests;
+proxy now requires that exact tag without a sibling replacement. The matching
+proxy candidate follows after its release gates. Both remain prereleases.
