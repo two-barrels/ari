@@ -3,6 +3,7 @@ package native
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/two-barrels/ari/v6"
@@ -38,20 +39,24 @@ func (c *Channel) List(filter *ari.Key) (cx []*ari.Key, err error) {
 
 // Hangup hangs up the given channel using the (optional) reason.
 func (c *Channel) Hangup(key *ari.Key, reason string) error {
-	if key == nil || key.ID == "" {
-		return errors.New("channel key not supplied")
-	}
-
 	if reason == "" {
 		reason = "normal"
 	}
+	return c.HangupWithOptions(key, ari.ChannelHangupOptions{Reason: reason})
+}
 
-	var req string
-	if reason != "" {
-		req = fmt.Sprintf("reason=%s", reason)
+func (c *Channel) HangupWithOptions(key *ari.Key, opts ari.ChannelHangupOptions) error {
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
 	}
-
-	return c.client.del("/channels/"+key.ID, nil, req)
+	query := url.Values{}
+	if opts.Reason != "" {
+		query.Set("reason", opts.Reason)
+	}
+	if opts.ReasonCode != "" {
+		query.Set("reason_code", opts.ReasonCode)
+	}
+	return c.client.del("/channels/"+url.PathEscape(key.ID), nil, query.Encode())
 }
 
 // Data retrieves the current state of the channel
@@ -89,6 +94,30 @@ func (c *Channel) Originate(referenceKey *ari.Key, req ari.OriginateRequest) (*a
 	return h, h.Exec()
 }
 
+func (c *Channel) OriginateWithID(referenceKey *ari.Key, req ari.OriginateRequest) (*ari.ChannelHandle, error) {
+	if req.ChannelID == "" {
+		return nil, errors.New("channel ID required for path-ID originate")
+	}
+	if referenceKey != nil && req.Originator == "" && referenceKey.Kind == ari.ChannelKey {
+		req.Originator = referenceKey.ID
+	}
+	path := "/channels/" + url.PathEscape(req.ChannelID)
+	var response struct {
+		ID string `json:"id"`
+	}
+	if err := c.client.post(path, &response, &req); err != nil {
+		return nil, err
+	}
+	if response.ID != "" && response.ID != req.ChannelID {
+		return nil, fmt.Errorf("originated channel ID %q differs from requested %q", response.ID, req.ChannelID)
+	}
+	key := ari.NewKey(ari.ChannelKey, req.ChannelID)
+	if referenceKey != nil {
+		key = referenceKey.New(ari.ChannelKey, req.ChannelID)
+	}
+	return ari.NewChannelHandle(c.client.stamp(key), c, nil), nil
+}
+
 // StageOriginate creates a new channel handle with a channel originate request
 // staged.
 //
@@ -103,7 +132,6 @@ func (c *Channel) StageOriginate(referenceKey *ari.Key, req ari.OriginateRequest
 	if req.ChannelID == "" {
 		req.ChannelID = rid.New(rid.Channel)
 	}
-
 	return ari.NewChannelHandle(c.client.stamp(ari.NewKey(ari.ChannelKey, req.ChannelID)), c,
 		func(ch *ari.ChannelHandle) error {
 			type response struct {
@@ -138,30 +166,31 @@ func (c *Channel) Create(key *ari.Key, req ari.ChannelCreateRequest) (*ari.Chann
 
 // Continue tells a channel to process to the given ARI context and extension
 func (c *Channel) Continue(key *ari.Key, context, extension string, priority int) (err error) {
-	req := struct {
-		Context   string `json:"context"`
-		Extension string `json:"extension"`
-		Priority  int    `json:"priority"`
-	}{
-		Context:   context,
-		Extension: extension,
-		Priority:  priority,
-	}
+	return c.ContinueWithOptions(key, ari.ChannelContinueOptions{Context: context, Extension: extension, Priority: &priority})
+}
 
-	return c.client.post("/channels/"+key.ID+"/continue", nil, &req)
+func (c *Channel) ContinueWithOptions(key *ari.Key, opts ari.ChannelContinueOptions) error {
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
+	}
+	path := "/channels/" + url.PathEscape(key.ID) + "/continue"
+	return c.client.post(path, nil, &struct {
+		Context   string `json:"context,omitempty"`
+		Extension string `json:"extension,omitempty"`
+		Priority  *int   `json:"priority,omitempty"`
+		Label     string `json:"label,omitempty"`
+	}{opts.Context, opts.Extension, opts.Priority, opts.Label})
 }
 
 // Move moves the channel to another stasis application
 func (c *Channel) Move(key *ari.Key, app string, appArgs string) error {
-	req := struct {
-		App     string `json:"app"`
-		AppArgs string `json:"appArgs"`
-	}{
-		App:     app,
-		AppArgs: appArgs,
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
 	}
-
-	return c.client.post("/channels/"+key.ID+"/move", nil, &req)
+	return c.client.post("/channels/"+url.PathEscape(key.ID)+"/move", nil, &struct {
+		App     string `json:"app"`
+		AppArgs string `json:"appArgs,omitempty"`
+	}{app, appArgs})
 }
 
 // Busy sends the busy status code to the channel (TODO: does this play a busy signal too)
@@ -201,42 +230,41 @@ func (c *Channel) StopHold(key *ari.Key) (err error) {
 
 // Mute mutes a channel in the given direction (TODO: does this return an error if already muted)
 func (c *Channel) Mute(key *ari.Key, dir ari.Direction) error {
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
+	}
 	if dir == "" {
 		dir = ari.DirectionBoth
 	}
-
-	req := struct {
-		Direction ari.Direction `json:"direction,omitempty"`
-	}{
-		Direction: dir,
-	}
-
-	return c.client.post("/channels/"+key.ID+"/mute", nil, &req)
+	return c.client.post("/channels/"+url.PathEscape(key.ID)+"/mute", nil, &struct {
+		Direction ari.Direction `json:"direction"`
+	}{dir})
 }
 
 // Unmute unmutes a channel in the given direction (TODO: does this return an error if unmuted)
 func (c *Channel) Unmute(key *ari.Key, dir ari.Direction) (err error) {
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
+	}
 	if dir == "" {
 		dir = ari.DirectionBoth
 	}
-
-	req := fmt.Sprintf("direction=%s", dir)
-
-	return c.client.del("/channels/"+key.ID+"/mute", nil, req)
+	return c.client.del("/channels/"+url.PathEscape(key.ID)+"/mute", nil, url.Values{"direction": {string(dir)}}.Encode())
 }
 
 // SendDTMF sends a string of digits and symbols to the channel
 func (c *Channel) SendDTMF(key *ari.Key, dtmf string, opts *ari.DTMFOptions) error {
-	if opts == nil {
-		opts = &ari.DTMFOptions{}
+	options := ari.DTMFOptions{}
+	if opts != nil {
+		options = *opts
 	}
 
-	if opts.Duration < 1 {
-		opts.Duration = 100 // ARI default, for documenation
+	if options.Duration <= 0 {
+		options.Duration = 100 * time.Millisecond
 	}
 
-	if opts.Between < 1 {
-		opts.Between = 100 // ARI default, for documentation
+	if options.Between <= 0 {
+		options.Between = 100 * time.Millisecond
 	}
 
 	req := struct {
@@ -247,10 +275,10 @@ func (c *Channel) SendDTMF(key *ari.Key, dtmf string, opts *ari.DTMFOptions) err
 		After    int    `json:"after,omitempty"`
 	}{
 		Dtmf:     dtmf,
-		Before:   int(opts.Before / time.Millisecond),
-		After:    int(opts.After / time.Millisecond),
-		Duration: int(opts.Duration / time.Millisecond),
-		Between:  int(opts.Between / time.Millisecond),
+		Before:   int(options.Before / time.Millisecond),
+		After:    int(options.After / time.Millisecond),
+		Duration: int(options.Duration / time.Millisecond),
+		Between:  int(options.Between / time.Millisecond),
 	}
 
 	return c.client.post("/channels/"+key.ID+"/dtmf", nil, &req)
@@ -258,13 +286,13 @@ func (c *Channel) SendDTMF(key *ari.Key, dtmf string, opts *ari.DTMFOptions) err
 
 // MOH plays the given music on hold class to the channel TODO: does this error when already playing MOH?
 func (c *Channel) MOH(key *ari.Key, class string) error {
-	req := struct {
-		Class string `json:"mohClass,omitempty"`
-	}{
-		Class: class,
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
 	}
-
-	return c.client.post("/channels/"+key.ID+"/moh", nil, &req)
+	path := "/channels/" + url.PathEscape(key.ID) + "/moh"
+	return c.client.post(path, nil, &struct {
+		Class string `json:"mohClass,omitempty"`
+	}{class})
 }
 
 // StopMOH stops any music on hold playing on the channel (TODO: does this error when no MOH is playing?)
@@ -285,11 +313,15 @@ func (c *Channel) StopSilence(key *ari.Key) error {
 // Play plays the given media URI on the channel, using the playbackID as
 // the identifier of the created ARI Playback entity
 func (c *Channel) Play(key *ari.Key, playbackID string, mediaURI ...string) (*ari.PlaybackHandle, error) {
+	return c.PlayWithOptions(key, playbackID, ari.ChannelPlayOptions{Media: mediaURI})
+}
+
+func (c *Channel) PlayWithOptions(key *ari.Key, playbackID string, opts ari.ChannelPlayOptions) (*ari.PlaybackHandle, error) {
 	if playbackID == "" {
 		playbackID = rid.New(rid.Playback)
 	}
 
-	h, err := c.StagePlay(key, playbackID, mediaURI...)
+	h, err := c.StagePlayWithOptions(key, playbackID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -299,23 +331,58 @@ func (c *Channel) Play(key *ari.Key, playbackID string, mediaURI ...string) (*ar
 
 // StagePlay stages a `Play` operation on the bridge
 func (c *Channel) StagePlay(key *ari.Key, playbackID string, mediaURI ...string) (*ari.PlaybackHandle, error) {
+	return c.StagePlayWithOptions(key, playbackID, ari.ChannelPlayOptions{Media: mediaURI})
+}
+
+func (c *Channel) StagePlayWithOptions(key *ari.Key, playbackID string, opts ari.ChannelPlayOptions) (*ari.PlaybackHandle, error) {
 	if playbackID == "" {
 		playbackID = rid.New(rid.Playback)
 	}
 
 	resp := make(map[string]interface{})
 
-	req := struct {
-		Media []string `json:"media"`
-	}{
-		Media: mediaURI,
-	}
-
 	playbackKey := c.client.stamp(ari.NewKey(ari.PlaybackKey, playbackID))
+	path := "/channels/" + url.PathEscape(key.ID) + "/play/" + url.PathEscape(playbackID)
+	request := channelPlayBody(opts)
 
 	return ari.NewPlaybackHandle(playbackKey, c.client.Playback(), func(pb *ari.PlaybackHandle) error {
-		return c.client.post("/channels/"+key.ID+"/play/"+playbackID, &resp, &req)
+		return c.client.post(path, &resp, &request)
 	}), nil
+}
+
+type channelPlayRequest struct {
+	Media      []string `json:"media"`
+	Lang       string   `json:"lang,omitempty"`
+	OffsetMS   *int     `json:"offsetms,omitempty"`
+	SkipMS     *int     `json:"skipms,omitempty"`
+	PlaybackID string   `json:"playbackId,omitempty"`
+}
+
+func channelPlayBody(opts ari.ChannelPlayOptions) channelPlayRequest {
+	return channelPlayRequest{Media: opts.Media, Lang: opts.Lang, OffsetMS: opts.OffsetMS, SkipMS: opts.SkipMS}
+}
+
+func (c *Channel) PlayWithoutID(key *ari.Key, opts ari.ChannelPlayOptions) (*ari.PlaybackHandle, error) {
+	return c.PlayOnCollection(key, "", opts)
+}
+
+func (c *Channel) PlayOnCollection(key *ari.Key, playbackID string, opts ari.ChannelPlayOptions) (*ari.PlaybackHandle, error) {
+	if key == nil || key.ID == "" {
+		return nil, errors.New("channel key not supplied")
+	}
+	path := "/channels/" + url.PathEscape(key.ID) + "/play"
+	request := channelPlayBody(opts)
+	request.PlaybackID = playbackID
+	var response struct {
+		ID string `json:"id"`
+	}
+	if err := c.client.post(path, &response, &request); err != nil {
+		return nil, err
+	}
+	if response.ID == "" {
+		return nil, errors.New("channel playback response omitted id")
+	}
+	return ari.NewPlaybackHandle(c.client.stamp(key.New(ari.PlaybackKey, response.ID)), c.client.Playback(), nil), nil
 }
 
 // Record records audio on the channel, using the name parameter as the name of the
@@ -371,8 +438,36 @@ func (c *Channel) Snoop(key *ari.Key, snoopID string, opts *ari.SnoopOptions) (*
 	return h, h.Exec()
 }
 
+func (c *Channel) SnoopWithoutID(key *ari.Key, opts *ari.SnoopOptions) (*ari.ChannelHandle, error) {
+	return c.SnoopOnCollection(key, "", opts)
+}
+
+func (c *Channel) SnoopOnCollection(key *ari.Key, snoopID string, opts *ari.SnoopOptions) (*ari.ChannelHandle, error) {
+	if key == nil || key.ID == "" {
+		return nil, errors.New("channel key not supplied")
+	}
+	if opts == nil {
+		opts = &ari.SnoopOptions{App: c.client.ApplicationName()}
+	}
+	var response struct {
+		ID string `json:"id"`
+	}
+	path := "/channels/" + url.PathEscape(key.ID) + "/snoop"
+	request := snoopBody(opts, snoopID)
+	if err := c.client.post(path, &response, &request); err != nil {
+		return nil, err
+	}
+	if response.ID == "" {
+		return nil, errors.New("snoop response omitted id")
+	}
+	return ari.NewChannelHandle(c.client.stamp(key.New(ari.ChannelKey, response.ID)), c, nil), nil
+}
+
 // StageSnoop creates a new `ChannelHandle` with a `Snoop` operation staged.
 func (c *Channel) StageSnoop(key *ari.Key, snoopID string, opts *ari.SnoopOptions) (*ari.ChannelHandle, error) {
+	if key == nil || key.ID == "" {
+		return nil, errors.New("channel key not supplied")
+	}
 	if opts == nil {
 		opts = &ari.SnoopOptions{App: c.client.ApplicationName()}
 	}
@@ -383,10 +478,24 @@ func (c *Channel) StageSnoop(key *ari.Key, snoopID string, opts *ari.SnoopOption
 
 	// Create the snooping channel's key
 	k := c.client.stamp(ari.NewKey(ari.ChannelKey, snoopID))
+	path := "/channels/" + url.PathEscape(key.ID) + "/snoop/" + url.PathEscape(snoopID)
+	request := snoopBody(opts, "")
 
 	return ari.NewChannelHandle(k, c, func(ch *ari.ChannelHandle) error {
-		return c.client.post("/channels/"+key.ID+"/snoop/"+snoopID, nil, &opts)
+		return c.client.post(path, nil, &request)
 	}), nil
+}
+
+type snoopRequest struct {
+	App     string        `json:"app"`
+	AppArgs string        `json:"appArgs,omitempty"`
+	Spy     ari.Direction `json:"spy,omitempty"`
+	Whisper ari.Direction `json:"whisper,omitempty"`
+	SnoopID string        `json:"snoopId,omitempty"`
+}
+
+func snoopBody(opts *ari.SnoopOptions, snoopID string) snoopRequest {
+	return snoopRequest{App: opts.App, AppArgs: opts.AppArgs, Spy: opts.Spy, Whisper: opts.Whisper, SnoopID: snoopID}
 }
 
 // ExternalMedia implements the ari.Channel interface
@@ -443,18 +552,13 @@ func (c *Channel) StageExternalMedia(key *ari.Key, opts ari.ExternalMediaOptions
 
 // Dial dials the given calling channel identifier
 func (c *Channel) Dial(key *ari.Key, callingChannelID string, timeout time.Duration) error {
-	req := struct {
-		// Caller is the (optional) channel ID of another channel to which media negotiations for the newly-dialed channel will be associated.
-		Caller string `json:"caller,omitempty"`
-
-		// Timeout is the maximum amount of time to allow for the dial to complete.
-		Timeout int `json:"timeout"`
-	}{
-		Caller:  callingChannelID,
-		Timeout: int(timeout.Seconds()),
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
 	}
-
-	return c.client.post("/channels/"+key.ID+"/dial", nil, &req)
+	return c.client.post("/channels/"+url.PathEscape(key.ID)+"/dial", nil, &struct {
+		Caller  string `json:"caller,omitempty"`
+		Timeout int    `json:"timeout"`
+	}{callingChannelID, int(timeout / time.Second)})
 }
 
 // Subscribe creates a new subscription for ARI events related to this channel
@@ -468,35 +572,127 @@ func (c *Channel) GetVariable(key *ari.Key, name string) (string, error) {
 		Value string `json:"value"`
 	}
 
-	err := c.client.get(fmt.Sprintf("/channels/%s/variable?variable=%s", key.ID, name), &m)
+	query := url.Values{"variable": {name}}
+	err := c.client.get(fmt.Sprintf("/channels/%s/variable?%s", key.ID, query.Encode()), &m)
 
 	return m.Value, err
 }
 
 // SetVariable sets the value of the given channel variable
 func (c *Channel) SetVariable(key *ari.Key, name, value string) error {
-	req := struct {
-		Name  string `json:"variable"`
-		Value string `json:"value,omitempty"`
-	}{
-		Name:  name,
-		Value: value,
-	}
+	return c.SetVariableWithOptions(key, name, value, nil)
+}
 
-	return c.client.post(fmt.Sprintf("/channels/%s/variable", key.ID), nil, &req)
+func (c *Channel) SetVariableWithOptions(key *ari.Key, name, value string, opts *ari.ChannelVariableSetOptions) error {
+	if key == nil || key.ID == "" {
+		return errors.New("channel key not supplied")
+	}
+	if name == "" {
+		return errors.New("variable name not supplied")
+	}
+	var reportEvents *bool
+	if opts != nil {
+		reportEvents = opts.ReportEvents
+	}
+	return c.client.post("/channels/"+url.PathEscape(key.ID)+"/variable", nil, &struct {
+		Variable     string `json:"variable"`
+		Value        string `json:"value"`
+		ReportEvents *bool  `json:"report_events,omitempty"`
+	}{name, value, reportEvents})
+}
+
+func channelPath(key *ari.Key) (string, error) {
+	if key == nil || key.ID == "" {
+		return "", errors.New("channel key not supplied")
+	}
+	return "/channels/" + url.PathEscape(key.ID), nil
+}
+
+// GetVariables retrieves several channel variables in one request.
+func (c *Channel) GetVariables(key *ari.Key, names ...string) (map[string]any, error) {
+	path, err := channelPath(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(names) == 0 {
+		return nil, errors.New("variable names not supplied")
+	}
+	query := url.Values{"variables": names}
+	var result struct {
+		Variables map[string]any `json:"variables"`
+	}
+	err = c.client.get(path+"/variables?"+query.Encode(), &result)
+	return result.Variables, err
+}
+
+// SetVariables assigns several channel variables in one request.
+func (c *Channel) SetVariables(key *ari.Key, values map[string]ari.VariableAssignment) error {
+	path, err := channelPath(key)
+	if err != nil {
+		return err
+	}
+	if len(values) == 0 {
+		return errors.New("variable values not supplied")
+	}
+	return c.client.post(path+"/variables", nil, &struct {
+		Variables map[string]ari.VariableAssignment `json:"variables"`
+	}{Variables: values})
+}
+
+func (c *Channel) Redirect(key *ari.Key, endpoint string) error {
+	path, err := channelPath(key)
+	if err != nil {
+		return err
+	}
+	if endpoint == "" {
+		return errors.New("endpoint not supplied")
+	}
+	return c.client.post(path+"/redirect?"+url.Values{"endpoint": {endpoint}}.Encode(), nil, nil)
+}
+
+func (c *Channel) Progress(key *ari.Key) error {
+	path, err := channelPath(key)
+	if err != nil {
+		return err
+	}
+	return c.client.post(path+"/progress", nil, nil)
+}
+
+func (c *Channel) TransferProgress(key *ari.Key, state string) error {
+	path, err := channelPath(key)
+	if err != nil {
+		return err
+	}
+	if state == "" {
+		return errors.New("transfer state not supplied")
+	}
+	return c.client.post(path+"/transfer_progress?"+url.Values{"states": {state}}.Encode(), nil, nil)
+}
+
+func (c *Channel) RTPStatistics(key *ari.Key) (*ari.RTPStats, error) {
+	path, err := channelPath(key)
+	if err != nil {
+		return nil, err
+	}
+	stats := new(ari.RTPStats)
+	if err := c.client.get(path+"/rtp_statistics", stats); err != nil {
+		return nil, err
+	}
+	return stats, nil
 }
 
 // UserEvent - triggers a UserEvent for the given channel
 func (c *Channel) UserEvent(key *ari.Key, ue *ari.ChannelUserevent) error {
-	req := struct {
-		Application string      `json:"application"`
-		Source      string      `json:"source"`
-		Variables   interface{} `json:"variables"`
-	}{
-		Application: key.App,
-		Source:      "channel:" + key.ID,
-		Variables:   ue.Userevent,
+	if key == nil || key.ID == "" || key.App == "" {
+		return errors.New("channel key with application not supplied")
 	}
-
-	return c.client.post(fmt.Sprintf("/events/user/%s", ue.Eventname), nil, &req)
+	if ue == nil || ue.Eventname == "" {
+		return errors.New("user event name not supplied")
+	}
+	body := struct {
+		Application string `json:"application"`
+		Source      string `json:"source"`
+		Variables   any    `json:"variables,omitempty"`
+	}{Application: key.App, Source: "channel:" + key.ID, Variables: ue.Userevent}
+	return c.client.post("/events/user/"+url.PathEscape(ue.Eventname), nil, &body)
 }

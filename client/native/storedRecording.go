@@ -1,10 +1,44 @@
 package native
 
 import (
+	"context"
 	"errors"
+	"net/http"
+	"net/url"
 
 	"github.com/two-barrels/ari/v6"
 )
+
+// File opens a binary recording response without buffering the file in memory.
+func (sr *StoredRecording) File(ctx context.Context, key *ari.Key) (*ari.RecordingFile, error) {
+	if ctx == nil {
+		return nil, errors.New("context not supplied")
+	}
+	if key == nil || key.ID == "" {
+		return nil, errors.New("storedRecording key not supplied")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		sr.client.Options.URL+"/recordings/stored/"+url.PathEscape(key.ID)+"/file", nil)
+	if err != nil {
+		return nil, err
+	}
+	if sr.client.Options.Username != "" {
+		req.SetBasicAuth(sr.client.Options.Username, sr.client.Options.Password)
+	}
+	// The regular command timeout covers the entire response body. Streaming
+	// needs the caller's context to control that lifetime instead.
+	httpClient := *sr.client.httpClient
+	httpClient.Timeout = 0
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := maybeRequestError(resp); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	return &ari.RecordingFile{Body: resp.Body, ContentType: resp.Header.Get("Content-Type"), Size: resp.ContentLength}, nil
+}
 
 // StoredRecording provides the ARI StoredRecording accessors for the native client
 type StoredRecording struct {
@@ -69,20 +103,20 @@ func (sr *StoredRecording) Copy(key *ari.Key, dest string) (*ari.StoredRecording
 
 // StageCopy creates a `StoredRecordingHandle` with a `Copy` operation staged.
 func (sr *StoredRecording) StageCopy(key *ari.Key, dest string) (*ari.StoredRecordingHandle, error) {
+	if key == nil || key.ID == "" {
+		return nil, errors.New("storedRecording key not supplied")
+	}
 	var resp struct {
 		Name string `json:"name"`
-	}
-
-	req := struct {
-		Dest string `json:"destinationRecordingName"`
-	}{
-		Dest: dest,
 	}
 
 	destKey := sr.client.stamp(ari.NewKey(ari.StoredRecordingKey, dest))
 
 	return ari.NewStoredRecordingHandle(destKey, sr, func(h *ari.StoredRecordingHandle) error {
-		return sr.client.post("/recordings/stored/"+key.ID+"/copy", &resp, &req)
+		path := "/recordings/stored/" + url.PathEscape(key.ID) + "/copy"
+		return sr.client.post(path, &resp, &struct {
+			DestinationRecordingName string `json:"destinationRecordingName"`
+		}{DestinationRecordingName: dest})
 	}), nil
 }
 

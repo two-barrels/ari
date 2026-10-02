@@ -2,6 +2,7 @@ package native
 
 import (
 	"errors"
+	"net/url"
 
 	"github.com/two-barrels/ari/v6"
 )
@@ -40,13 +41,12 @@ func (a *Playback) Data(key *ari.Key) (*ari.PlaybackData, error) {
 //   - reverse
 //   - forward
 func (a *Playback) Control(key *ari.Key, op string) error {
-	req := struct {
-		Operation string `json:"operation"`
-	}{
-		Operation: op,
+	if key == nil || key.ID == "" {
+		return errors.New("playback key not supplied")
 	}
-
-	return a.client.post("/playbacks/"+key.ID+"/control", nil, &req)
+	return a.client.post("/playbacks/"+url.PathEscape(key.ID)+"/control", nil, &struct {
+		Operation string `json:"operation"`
+	}{Operation: op})
 }
 
 // Stop stops a playback session.

@@ -34,3 +34,7 @@ func (e *errDataGet) Error() string {
 func (e *errDataGet) Cause() error {
 	return e.c
 }
+
+func (e *errDataGet) Unwrap() error {
+	return e.c
+}

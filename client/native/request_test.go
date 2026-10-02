@@ -1,9 +1,11 @@
 package native
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,4 +47,29 @@ func TestNewUsesPackageDefaultRequestTimeout(t *testing.T) {
 	client := New(&Options{})
 
 	require.Equal(t, RequestTimeout, client.httpClient.Timeout)
+}
+
+type responseTransport func(*http.Request) (*http.Response, error)
+
+func (transport responseTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	return transport(request)
+}
+
+func TestRequestPreservesHTTPStatusWithEmptyErrorBody(t *testing.T) {
+	client := New(&Options{
+		URL: "http://asterisk.test/ari",
+		HTTPClient: &http.Client{Transport: responseTransport(func(request *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Status:     "404 Not Found",
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("")),
+				Request:    request,
+			}, nil
+		})},
+	})
+	var result struct{}
+	err := client.get("/channels/missing", &result)
+	require.Error(t, err)
+	require.Equal(t, http.StatusNotFound, CodeFromError(err))
 }

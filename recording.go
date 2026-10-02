@@ -27,6 +27,10 @@ type RecordingOptions struct {
 	// If not specified, this will default to slin.
 	Format string
 
+	// RecorderFormat selects the bridge recorder's input audio format when
+	// recording a bridge. Empty leaves the Asterisk default in effect.
+	RecorderFormat string
+
 	// MaxDuration is the maximum duration of the recording, after which the recording will
 	// automatically stop.  If not set, there is no maximum.
 	MaxDuration time.Duration

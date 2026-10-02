@@ -22,6 +22,23 @@ type Endpoint interface {
 
 	// Data returns the state of the endpoint
 	Data(key *Key) (*EndpointData, error)
+
+	// Refer sends a REFER to the endpoint or technology URI in opts.To.
+	// referenceKey selects an Asterisk node when used through a proxy.
+	Refer(referenceKey *Key, opts EndpointReferOptions) error
+
+	// ReferToEndpoint sends a REFER to the endpoint identified by key.
+	ReferToEndpoint(key *Key, opts EndpointReferOptions) error
+}
+
+// EndpointReferOptions contains the parameters shared by the two REFER routes.
+// To is required only for Refer; ToSelf distinguishes omitted from explicit false.
+type EndpointReferOptions struct {
+	To        string            `json:"to,omitempty"`
+	From      string            `json:"from"`
+	ReferTo   string            `json:"refer_to"`
+	ToSelf    *bool             `json:"to_self,omitempty"`
+	Variables map[string]string `json:"variables,omitempty"`
 }
 
 // NewEndpointKey returns the key for the given endpoint
@@ -101,4 +118,9 @@ func (eh *EndpointHandle) Key() *Key {
 // Data returns the state of the endpoint
 func (eh *EndpointHandle) Data() (*EndpointData, error) {
 	return eh.e.Data(eh.key)
+}
+
+// Refer sends a REFER to this endpoint.
+func (eh *EndpointHandle) Refer(opts EndpointReferOptions) error {
+	return eh.e.ReferToEndpoint(eh.key, opts)
 }

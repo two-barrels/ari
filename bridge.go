@@ -1,13 +1,21 @@
 package ari
 
+import "encoding/json"
+
 // Bridge represents a communication path to an
 // Asterisk server for working with bridge resources
 type Bridge interface {
 	// Create creates a bridge
 	Create(key *Key, btype string, name string) (*BridgeHandle, error)
+	CreateWithOptions(key *Key, opts BridgeCreateOptions) (*BridgeHandle, error)
+	// CreateWithoutID uses POST /bridges and returns Asterisk's assigned ID.
+	CreateWithoutID(reference *Key, opts BridgeCreateOptions) (*BridgeHandle, error)
+	// CreateOnCollection uses POST /bridges with an optional bridgeId query value.
+	CreateOnCollection(reference *Key, bridgeID string, opts BridgeCreateOptions) (*BridgeHandle, error)
 
 	// StageCreate creates a new bridge handle, staged with a bridge `Create` operation.
 	StageCreate(key *Key, btype string, name string) (*BridgeHandle, error)
+	StageCreateWithOptions(key *Key, opts BridgeCreateOptions) (*BridgeHandle, error)
 
 	// Get gets the BridgeHandle
 	Get(key *Key) *BridgeHandle
@@ -38,10 +46,16 @@ type Bridge interface {
 
 	// Play plays the media URI to the bridge
 	Play(key *Key, playbackID string, mediaURI ...string) (*PlaybackHandle, error)
+	PlayWithOptions(key *Key, playbackID string, opts BridgePlayOptions) (*PlaybackHandle, error)
+	// PlayWithoutID uses POST /bridges/{bridgeId}/play and returns Asterisk's assigned ID.
+	PlayWithoutID(key *Key, opts BridgePlayOptions) (*PlaybackHandle, error)
+	// PlayOnCollection uses POST /bridges/{bridgeId}/play with an optional playbackId.
+	PlayOnCollection(key *Key, playbackID string, opts BridgePlayOptions) (*PlaybackHandle, error)
 
 	// StagePlay stages a `Play` operation and returns the `PlaybackHandle`
 	// for invoking it.
 	StagePlay(key *Key, playbackID string, mediaURI ...string) (*PlaybackHandle, error)
+	StagePlayWithOptions(key *Key, playbackID string, opts BridgePlayOptions) (*PlaybackHandle, error)
 
 	// Record records the bridge
 	Record(key *Key, name string, opts *RecordingOptions) (*LiveRecordingHandle, error)
@@ -58,6 +72,79 @@ type Bridge interface {
 
 	// VideoSourceDelete delete Video-Source-ID from bridge
 	VideoSourceDelete(key *Key) error
+
+	// GetVariable reads a bridge variable or function.
+	GetVariable(key *Key, name string) (string, error)
+
+	// SetVariable writes a bridge variable; reportEvents controls inclusion in bridge events.
+	SetVariable(key *Key, name, value string, reportEvents *bool) error
+
+	// GetVariables reads multiple bridge variables or functions.
+	GetVariables(key *Key, names ...string) (map[string]any, error)
+
+	// SetVariables writes multiple bridge variables or functions.
+	SetVariables(key *Key, values map[string]BridgeVariableAssignment) error
+}
+
+// BridgeVariableAssignment is a value in the bulk bridge variable request.
+// Without ReportEvents, Asterisk accepts the short string form. With it, the
+// request uses an object so explicit false and true are both preserved.
+type BridgeVariableAssignment struct {
+	Value        string
+	ReportEvents *bool
+}
+
+// BridgeCreateVariable is an object-valued variable on bridge creation.
+type BridgeCreateVariable struct {
+	Value        string `json:"value"`
+	ReportEvents *bool  `json:"report_events,omitempty"`
+}
+
+// BridgeCreateOptions controls bridge creation and its initial variables.
+type BridgeCreateOptions struct {
+	Type      string
+	Name      string
+	Variables map[string]BridgeCreateVariable
+}
+
+// BridgePlayOptions controls playback on a bridge. A nil offset or skip value
+// leaves Asterisk's default in effect; a pointer preserves an explicit zero.
+type BridgePlayOptions struct {
+	Media           []string
+	AnnouncerFormat string
+	Lang            string
+	OffsetMS        *int
+	SkipMS          *int
+}
+
+// VariableAssignment is the common single value format for channel and bridge
+// bulk variable writes.
+type VariableAssignment = BridgeVariableAssignment
+
+func (value BridgeVariableAssignment) MarshalJSON() ([]byte, error) {
+	if value.ReportEvents == nil {
+		return json.Marshal(value.Value)
+	}
+	return json.Marshal(struct {
+		Value        string `json:"value"`
+		ReportEvents bool   `json:"report_events"`
+	}{Value: value.Value, ReportEvents: *value.ReportEvents})
+}
+
+func (value *BridgeVariableAssignment) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		value.ReportEvents = nil
+		return json.Unmarshal(data, &value.Value)
+	}
+	var object struct {
+		Value        string `json:"value"`
+		ReportEvents *bool  `json:"report_events"`
+	}
+	if err := json.Unmarshal(data, &object); err != nil {
+		return err
+	}
+	value.Value, value.ReportEvents = object.Value, object.ReportEvents
+	return nil
 }
 
 // BridgeData describes an Asterisk Bridge, the entity which merges media from
@@ -85,6 +172,10 @@ type BridgeAddChannelOptions struct {
 
 	// Role indicates the channel's role in the bridge
 	Role string
+
+	// InhibitConnectedLineUpdates suppresses presenting the new channel's
+	// identity to existing bridge members. Nil leaves the option omitted.
+	InhibitConnectedLineUpdates *bool
 }
 
 // Channels returns the list of channels found in the bridge
@@ -121,6 +212,26 @@ func (bh *BridgeHandle) ID() string {
 // Key returns the Key of the bridge
 func (bh *BridgeHandle) Key() *Key {
 	return bh.key
+}
+
+// GetVariable reads a variable from this bridge.
+func (bh *BridgeHandle) GetVariable(name string) (string, error) {
+	return bh.b.GetVariable(bh.key, name)
+}
+
+// SetVariable writes a variable on this bridge.
+func (bh *BridgeHandle) SetVariable(name, value string, reportEvents *bool) error {
+	return bh.b.SetVariable(bh.key, name, value, reportEvents)
+}
+
+// GetVariables reads multiple variables from this bridge.
+func (bh *BridgeHandle) GetVariables(names ...string) (map[string]any, error) {
+	return bh.b.GetVariables(bh.key, names...)
+}
+
+// SetVariables writes multiple variables on this bridge.
+func (bh *BridgeHandle) SetVariables(values map[string]BridgeVariableAssignment) error {
+	return bh.b.SetVariables(bh.key, values)
 }
 
 // Exec executes any staged operations attached on the bridge handle
@@ -180,9 +291,25 @@ func (bh *BridgeHandle) Play(id string, mediaURI ...string) (*PlaybackHandle, er
 	return bh.b.Play(bh.key, id, mediaURI...)
 }
 
+func (bh *BridgeHandle) PlayWithOptions(id string, opts BridgePlayOptions) (*PlaybackHandle, error) {
+	return bh.b.PlayWithOptions(bh.key, id, opts)
+}
+
+func (bh *BridgeHandle) PlayWithoutID(opts BridgePlayOptions) (*PlaybackHandle, error) {
+	return bh.b.PlayWithoutID(bh.key, opts)
+}
+
+func (bh *BridgeHandle) PlayOnCollection(id string, opts BridgePlayOptions) (*PlaybackHandle, error) {
+	return bh.b.PlayOnCollection(bh.key, id, opts)
+}
+
 // StagePlay stages a `Play` operation.
 func (bh *BridgeHandle) StagePlay(id string, mediaURI ...string) (*PlaybackHandle, error) {
 	return bh.b.StagePlay(bh.key, id, mediaURI...)
+}
+
+func (bh *BridgeHandle) StagePlayWithOptions(id string, opts BridgePlayOptions) (*PlaybackHandle, error) {
+	return bh.b.StagePlayWithOptions(bh.key, id, opts)
 }
 
 // Record records the bridge to the given filename
