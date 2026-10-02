@@ -51,6 +51,7 @@ func Prompt(ctx context.Context, p ari.Player, opts ...OptionFunc) Session {
 // Play starts a new Play Session from the existing Options
 func (o *Options) Play(ctx context.Context, p ari.Player) Session {
 	s := newPlaySession(o)
+	ctx, s.cancel = context.WithCancel(ctx)
 
 	go s.play(ctx, p)
 

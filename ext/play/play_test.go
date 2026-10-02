@@ -51,12 +51,30 @@ func (p *playStagedTest) Setup() {
 }
 
 func TestPlayStaged(t *testing.T) {
+	t.Run("cancelBeforeExec", testPlayStagedCancelBeforeExec)
 	t.Run("noEventTimeout", testPlayStagedNoEventTimeout)
 	t.Run("startFinishedEvent", testPlayStagedStartFinishedEvent)
 	t.Run("finishedBeforeStart", testPlayStagedFinishedEvent)
 	t.Run("failExec", testPlayStagedFailExec)
 	t.Run("cancel", testPlayStagedCancel)
 	t.Run("cancelAfterStart", testPlayStagedCancelAfterStart)
+}
+
+func testPlayStagedCancelBeforeExec(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var p playStagedTest
+	p.handleExec = func(*ari.PlaybackHandle) error {
+		t.Fatal("cancelled playback was started")
+		return nil
+	}
+	p.Setup()
+
+	status, err := playStaged(ctx, p.handle, 0)
+	if err != nil || status != Cancelled {
+		t.Fatalf("expected cancelled playback, got status %v, error %v", status, err)
+	}
 }
 
 func testPlayStagedNoEventTimeout(t *testing.T) {
@@ -245,6 +263,36 @@ func TestPlay(t *testing.T) {
 	t.Run("testPlayNoURI", testPlayNoURI)
 	t.Run("testPlay", testPlay)
 	t.Run("testPlayDtmf", testPlayDtmf)
+	t.Run("dtmfBeforeSequenceStarts", testPlayDtmfBeforeSequenceStarts)
+}
+
+func testPlayDtmfBeforeSequenceStarts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var p playTest
+	p.Setup()
+	opts := NewPromptOptions()
+	opts.uriList.Add("sound:1")
+	s := newPlaySession(opts)
+	seq := newSequence(ctx, s)
+	s.mu.Lock()
+	s.currentSequence = seq
+	s.mu.Unlock()
+
+	go s.listenDTMF(ctx, p.player)
+	p.dtmfChannel <- &ari.ChannelDtmfReceived{Digit: "1"}
+	select {
+	case <-seq.ctx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("DTMF did not cancel the published sequence")
+	}
+
+	seq.Play(p.player, 0)
+	p.player.AssertNotCalled(t, "StagePlay")
+	if s.result.Status != Cancelled {
+		t.Fatalf("expected cancelled sequence, got %v", s.result.Status)
+	}
 }
 
 func testPlayNoURI(t *testing.T) {

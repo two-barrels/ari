@@ -12,6 +12,7 @@ import (
 
 // sequence represents an audio sequence playback session
 type sequence struct {
+	ctx    context.Context
 	cancel context.CancelFunc
 	s      *playSession
 
@@ -23,27 +24,33 @@ func (s *sequence) Done() <-chan struct{} {
 }
 
 func (s *sequence) Stop() {
-	if s.cancel != nil {
-		s.cancel()
-	}
+	s.cancel()
 }
 
-func newSequence(s *playSession) *sequence {
-	return &sequence{
-		s:    s,
-		done: make(chan struct{}),
-	}
-}
-
-func (s *sequence) Play(ctx context.Context, p ari.Player, playbackCounter int) {
+func newSequence(ctx context.Context, s *playSession) *sequence {
 	ctx, cancel := context.WithCancel(ctx)
-	s.cancel = cancel
+	return &sequence{
+		ctx:    ctx,
+		cancel: cancel,
+		s:      s,
+		done:   make(chan struct{}),
+	}
+}
 
-	defer cancel()
+func (s *sequence) Play(p ari.Player, playbackCounter int) {
+	defer s.cancel()
 	defer close(s.done)
+	if s.ctx.Err() != nil {
+		s.s.result.Status = Cancelled
+		return
+	}
 
 	if playbackCounter > 0 && !s.s.o.invalidPrependUriList.Empty() {
 		for u := s.s.o.invalidPrependUriList.First(); u != ""; u = s.s.o.invalidPrependUriList.Next() {
+			if s.ctx.Err() != nil {
+				s.s.result.Status = Cancelled
+				return
+			}
 			pb, err := p.StagePlay(rid.New(rid.Playback), u)
 			if err != nil {
 				s.s.result.Status = Failed
@@ -52,7 +59,7 @@ func (s *sequence) Play(ctx context.Context, p ari.Player, playbackCounter int) 
 				return
 			}
 
-			s.s.result.Status, err = playStaged(ctx, pb, s.s.o.playbackStartTimeout)
+			s.s.result.Status, err = playStaged(s.ctx, pb, s.s.o.playbackStartTimeout)
 			if err != nil {
 				s.s.result.Error = eris.Wrap(err, "failure in playback")
 
@@ -62,6 +69,10 @@ func (s *sequence) Play(ctx context.Context, p ari.Player, playbackCounter int) 
 	}
 
 	for u := s.s.o.uriList.First(); u != ""; u = s.s.o.uriList.Next() {
+		if s.ctx.Err() != nil {
+			s.s.result.Status = Cancelled
+			return
+		}
 		pb, err := p.StagePlay(rid.New(rid.Playback), u)
 		if err != nil {
 			s.s.result.Status = Failed
@@ -70,7 +81,7 @@ func (s *sequence) Play(ctx context.Context, p ari.Player, playbackCounter int) 
 			return
 		}
 
-		s.s.result.Status, err = playStaged(ctx, pb, s.s.o.playbackStartTimeout)
+		s.s.result.Status, err = playStaged(s.ctx, pb, s.s.o.playbackStartTimeout)
 		if err != nil {
 			s.s.result.Error = eris.Wrap(err, "failure in playback")
 
@@ -81,6 +92,9 @@ func (s *sequence) Play(ctx context.Context, p ari.Player, playbackCounter int) 
 
 // playStaged executes a staged playback, waiting for its completion
 func playStaged(ctx context.Context, h *ari.PlaybackHandle, timeout time.Duration) (Status, error) {
+	if ctx.Err() != nil {
+		return Cancelled, nil
+	}
 	started := h.Subscribe(ari.Events.PlaybackStarted)
 	defer started.Cancel()
 
@@ -89,6 +103,9 @@ func playStaged(ctx context.Context, h *ari.PlaybackHandle, timeout time.Duratio
 
 	if timeout == 0 {
 		timeout = DefaultPlaybackStartTimeout
+	}
+	if ctx.Err() != nil {
+		return Cancelled, nil
 	}
 
 	if err := h.Exec(); err != nil {
