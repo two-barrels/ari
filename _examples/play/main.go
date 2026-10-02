@@ -6,9 +6,9 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/CyCoreSystems/ari/v6"
-	"github.com/CyCoreSystems/ari/v6/client/native"
-	"github.com/CyCoreSystems/ari/v6/ext/play"
+	"github.com/two-barrels/ari/v6"
+	"github.com/two-barrels/ari/v6/client/native"
+	"github.com/two-barrels/ari/v6/ext/play"
 )
 
 var log = slog.New(slog.NewTextHandler(os.Stderr, nil))
