@@ -3,7 +3,7 @@
 # Migrating ARI applications to v6
 
 Status: release candidate, 2026-10-02. Evaluate published
-`github.com/two-barrels/ari/v6@v6.0.0-rc.1` in a separate application migration
+`github.com/two-barrels/ari/v6@v6.0.0-rc.2` in a separate application migration
 branch. Stable v6 is not released; existing v5 consumers remain intact.
 
 ## Toolchain and imports

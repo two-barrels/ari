@@ -4,14 +4,18 @@
 
 ## Release candidate status — 2026-10-02 (supersedes historical status below)
 
+Current candidate: `v6.0.0-rc.2`, adding attribution notices and audit tooling
+to rc.1. Publish ARI first, then require that exact tag in proxy before its
+matching candidate. Preserve both rc.1 tags; v5 main is unchanged.
+
 The v6 branch now carries per-file two-barrels modification/creation notices
 relative to the pinned upstream commit in NOTICE. Run `go run ./tools/file-notices`
 to check additions/changes; use `--apply` to add notices. Event generation embeds
 the notice from its template; Makefile generation targets also restore notices.
 Keep original attribution and LICENSE intact. go.sum and the unmodified pinned
 Asterisk JSON use companion .notice files because inline comments would break
-their formats or the pinned bytes. These changes postdate rc.1: publish a new
-candidate before distributing them; never move the existing tag.
+their formats or the pinned bytes. These changes are included in rc.2;
+never move the existing rc.1 tag.
 
 PR #1 is merged into permanent `v6`; existing `main` and v5 tags remain intact.
 Published `v6.0.0-rc.1` points to `05e769a972ff5b11bb6db96195135cfe52f6db75`.

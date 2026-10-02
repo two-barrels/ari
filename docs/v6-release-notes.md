@@ -1,10 +1,19 @@
 <!-- Created by two-barrels in 2026 for ARI v6 modernization. SPDX-License-Identifier: Apache-2.0 -->
 
-# ARI v6.0.0-rc.1 release notes
+# ARI v6.0.0-rc.2 release notes
 
-Module: `github.com/two-barrels/ari/v6`. Published prerelease: `v6.0.0-rc.1`,
-at commit `05e769a972ff5b11bb6db96195135cfe52f6db75`. Existing v5 consumers
+Module: `github.com/two-barrels/ari/v6`. Prerelease: `v6.0.0-rc.2`.
+This supersedes rc.1; the existing rc.1 tag remains immutable. Existing v5 consumers
 remain intact; stable v6 and phone-apps adoption remain future work.
+
+## Changes since rc.1
+
+- Added prominent two-barrels modification notices to changed upstream files
+  and creation notices to new fork files, retaining original attribution.
+- Added NOTICE and companion notices for checksum and pinned specification files.
+- Added a per-file audit to CI and generation commands; the event template
+  includes its modification notice in generated output.
+- Library APIs and runtime behavior are unchanged from rc.1.
 
 ## Changes
 
