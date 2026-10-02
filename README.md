@@ -1,27 +1,32 @@
 # ari - Golang Asterisk Rest Interface (ARI) library
-[![Build Status](https://travis-ci.org/CyCoreSystems/ari.png)](https://travis-ci.org/CyCoreSystems/ari) [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/CyCoreSystems/ari/v6) 
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/two-barrels/ari/v6)
+
+This is the two-barrels fork of [CyCoreSystems/ari](https://github.com/CyCoreSystems/ari).
 
 This library allows you to easily access ARI in go applications.  The Asterisk Rest Interface (https://wiki.asterisk.org/wiki/pages/viewpage.action?pageId=29395573) is an asynchronous API which allows you to access basic Asterisk objects for custom communications applications.  
 
 This project also includes some convenience wrappers for various tasks, found in /ext.  These include go-idiomatic utilities for playing audio, IVRs, recordings, and other tasks which are tricky to coordinate nicely in ARI alone.  
 
-**NOTE** This version of `ari` requires Asterisk version 14 or later.  If
-support is needed for version 13, please use v5 of `ari`.
+Compatibility is being validated against selected Asterisk 20, 22, and 23
+versions. Newer operations require server support; the pinned Asterisk 23
+contract does not certify every route on older servers. See the migration guide
+for current live validation evidence.
 
 # Getting started
 
 This library maintains semver, and APIs between major releases **do** change.
-We use `GO111MODULE`, so Go version 1.11 or later is required.
+This checkout requires Go 1.25.0 or later.
 
-Version `5.x.x` is the current version.
+Version `5.x.x` is the latest tagged release. The `/v6` module path in this
+checkout is still under development and has not been tagged as a v6 release.
 
 There is also a NATS-based `ari-proxy` which is designed to work with this
 client library.  It can be found at
-[CyCoreSystems/ari-proxy](https://github.com/CyCoreSystems/ari-proxy).
+[CyCoreSystems/ari-proxy](https://github.com/two-barrels/ari-proxy).
 
-Install with: 
+After an approved v6 tag is published, install its exact version:
 ```sh 
-go get github.com/CyCoreSystems/ari/v6
+go get github.com/two-barrels/ari/v6@<approved-tag>
 ```
 
 # Features
@@ -194,7 +199,7 @@ There are a number of extensions which wrap the lower-level operations in
 higher-level ones, making it easier to perform many common tasks.
 
 
-### AudioURI [![](https://godoc.org/github.com/CyCoreSystems/ari?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/audiouri)
+### AudioURI [![](https://pkg.go.dev/github.com/two-barrels/ari/v6?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/audiouri)
 
 Constructing Asterisk audio playback URIs can be a bit tedious, particularly for handling
 certain edge cases in digits and for constructing dates.
@@ -202,7 +207,7 @@ certain edge cases in digits and for constructing dates.
 The `audiouri` package provides a number of routines to make the construction of
 these URIs simpler.
 
-### Bridgemon [![](https://godoc.org/github.com/CyCoreSystems/ari?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/bridgemon)
+### Bridgemon [![](https://pkg.go.dev/github.com/two-barrels/ari/v6?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/bridgemon)
 
 Monitoring a bridge for events and data updates is not difficult, but it
 involves a lot of code and often makes several wasteful calls to obtain bridge
@@ -215,7 +220,7 @@ retrieve the updated data without multiple requests.
 It also shuts itself down automatically when the bridge it is monitoring is
 destroyed.
 
-### Play [![](https://godoc.org/github.com/CyCoreSystems/ari?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/play)
+### Play [![](https://pkg.go.dev/github.com/two-barrels/ari/v6?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/play)
 
 Playback of media and waiting for (DTMF) responses therefrom is an incredibly
 common task in telephony.  ARI provides many tools to perform these types of
@@ -233,7 +238,7 @@ The execution of a `Play` is configured by any number of option functions, which
 supply structured modifiers for the behaviour of the playback.  You can even
 supply your own Match function for highly-customized matching.
 
-### Record [![](https://godoc.org/github.com/CyCoreSystems/ari?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/record)
+### Record [![](https://pkg.go.dev/github.com/two-barrels/ari/v6?status.svg)](http://godoc.org/github.com/CyCoreSystems/ari/ext/record)
 
 Making recordings is another complicated but common task for ARI applications.
 The `ext/record`, we provide a simple wrapper which facilitates many common
@@ -248,7 +253,7 @@ Features include:
 
 # Documentation and Examples
 
-Go documentation is available at https://godoc.org/github.com/CyCoreSystems/ari
+Go documentation is available at https://pkg.go.dev/github.com/two-barrels/ari/v6
 
 Examples for helloworld, play, script, bridge, and record are available.  Set your environment variables as described above (at minimum, `ARI_USERNAME` and `ARI_PASSWORD`) and run:
 
@@ -281,3 +286,9 @@ Contributions welcomed. Changes with tests and descriptive commit messages will 
 # License
 
 Licensed under the Apache License, Version 2.0 
+
+## v6 migration and release preparation
+
+See [the v6 migration guide](docs/v6-migration.md) for toolchain, interface,
+event, recording, error, and shutdown changes. The coordinated release remains
+subject to the integration and standalone consumer gates described there.
