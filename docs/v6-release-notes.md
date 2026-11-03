@@ -6,6 +6,19 @@ Module: `github.com/two-barrels/ari/v6`. Prerelease: `v6.0.0-rc.2`.
 This supersedes rc.1; the existing rc.1 tag remains immutable. Existing v5 consumers
 remain intact; stable v6 and phone-apps adoption remain future work.
 
+## Unreleased changes after rc.2
+
+- `ext/play` checks playback state when `PlaybackStarted` is missing instead of
+  stopping audio solely because the start-event timeout expired. Active playback
+  continues under the existing session time limit, with state checks every 500 ms
+  on this recovery path. Normal event-driven playback makes no additional reads.
+- Completion events and cancellation remain responsive during state reads. A
+  playback that disappears without a completion event returns an error; its
+  disappearance is not treated as proof of successful playback. Failed playback
+  events also return an error. DTMF interruption behavior is preserved.
+- No public API or dependency changes. Consumers must adopt a release or commit
+  containing this fix; the published rc.2 tag does not contain it.
+
 ## Changes since rc.1
 
 - Added prominent two-barrels modification notices to changed upstream files

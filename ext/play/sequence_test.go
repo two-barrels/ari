@@ -94,6 +94,8 @@ func testSequenceSomeItemsTimeoutStart(t *testing.T) {
 	opts.playbackStartTimeout = 10 * time.Millisecond
 	seq := newSequence(ctx, newPlaySession(opts))
 
+	s.playback.On("Data", s.key).Return(&ari.PlaybackData{State: "queued"}, nil).Once()
+
 	seq.Play(player, 0)
 
 	player.AssertCalled(t, "StagePlay", mock.Anything, "sound:1")

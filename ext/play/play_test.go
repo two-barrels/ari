@@ -88,6 +88,8 @@ func testPlayStagedNoEventTimeout(t *testing.T) {
 
 	p.Setup()
 
+	p.playback.On("Data", p.key).Return(&ari.PlaybackData{State: "queued"}, nil).Once()
+
 	st, err := playStaged(ctx, p.handle, 0)
 
 	if err == nil || err.Error() != "timeout waiting for playback to start" {

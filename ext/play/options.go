@@ -1,3 +1,6 @@
+// Modified by two-barrels in 2026 for ARI v6 modernization.
+// SPDX-License-Identifier: Apache-2.0
+
 package play
 
 import (
@@ -322,7 +325,9 @@ func InvalidPrependURI(uri ...string) OptionFunc {
 	}
 }
 
-// PlaybackStartTimeout overrides the default playback start timeout
+// PlaybackStartTimeout sets how long to wait for a playback start event before
+// checking playback state. Active playback is allowed to finish even if the
+// start event was lost; the session time limit still bounds the overall session.
 func PlaybackStartTimeout(timeout time.Duration) OptionFunc {
 	return func(o *Options) error {
 		o.playbackStartTimeout = timeout
